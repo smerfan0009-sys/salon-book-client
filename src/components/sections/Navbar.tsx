@@ -16,6 +16,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,8 +25,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-// Temporary session type.
-// Replace with Better Auth session type after configuring authentication.
+import ThemeToggle from "@/components/theme-toggle";
+
+// Temporary Session Type
+// Later replace this with Better Auth session type.
 type Session = {
   user: {
     name?: string;
@@ -37,10 +40,12 @@ type Session = {
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
+
   const [isOpen, setIsOpen] = useState(false);
 
-  // Temporary mock auth state
-  const session: Session = null;
+  // Temporary Mock Session
+  const [session] = useState<Session>(null);
+
   const userRole = session?.user?.role || "customer";
 
   const dashboardPath =
@@ -60,7 +65,7 @@ export default function Navbar() {
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 group">
+        <Link href="/" className="group flex items-center gap-2">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md transition-transform group-hover:scale-105">
             <Scissors className="h-5 w-5 rotate-45" />
           </div>
@@ -107,8 +112,11 @@ export default function Navbar() {
           )}
         </nav>
 
-        {/* Desktop Auth Actions */}
+        {/* Desktop Actions */}
         <div className="hidden items-center gap-4 md:flex">
+          {/* Theme Toggle */}
+          <ThemeToggle />
+
           {session ? (
             <DropdownMenu>
               <DropdownMenuTrigger className="flex items-center gap-2 rounded-full px-2 py-1.5 transition-colors hover:bg-muted">
@@ -177,8 +185,11 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* Mobile Navigation */}
-        <div className="flex items-center md:hidden">
+        {/* Mobile Actions */}
+        <div className="flex items-center gap-2 md:hidden">
+          {/* Mobile Theme Toggle */}
+          <ThemeToggle />
+
           <Sheet open={isOpen} onOpenChange={setIsOpen}>
             <SheetTrigger className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-input bg-background text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground">
               <Menu className="h-5 w-5" />
@@ -207,7 +218,7 @@ export default function Navbar() {
 
                 <hr className="border-muted" />
 
-                {/* Mobile Links */}
+                {/* Mobile Navigation Links */}
                 <nav className="flex flex-col gap-3">
                   {navLinks.map((link) => (
                     <Link

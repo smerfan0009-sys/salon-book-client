@@ -128,3 +128,15 @@
     @apply font-sans;
   }
 }
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  /* Other light theme variables */
+}
+
+.dark {
+  --background: #09090b;
+  --foreground: #fafafa;
+  /* Other dark theme variables */
+}
