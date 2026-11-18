@@ -26,16 +26,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import ThemeToggle from "@/components/theme-toggle";
-
-// Temporary Session Type
-// Later replace this with Better Auth session type.
-type Session = {
-  user: {
-    name?: string;
-    email?: string;
-    role?: string;
-  };
-} | null;
+import { useSession, authClient } from "@/lib/auth-client";
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -43,23 +34,33 @@ export default function Navbar() {
 
   const [isOpen, setIsOpen] = useState(false);
 
-  // Temporary Mock Session
-  const [session] = useState<Session>(null);
+  // Better Auth session (cookie-based; shared with the Express API).
+  const { data: session } = useSession();
 
-  const userRole = session?.user?.role || "customer";
+  const userRole =
+    (session?.user as { role?: string } | undefined)?.role ?? "customer";
 
   const dashboardPath =
     userRole === "admin" ? "/dashboard/admin" : "/dashboard/customer";
-
-  const handleSignOut = async () => {
-    // await authClient.signOut();
-    router.push("/sign-in");
-  };
 
   const navLinks = [
     { name: "Home", href: "/" },
     { name: "Browse Services", href: "/services" },
   ];
+
+  const handleSignOut = async () => {
+    try {
+      await authClient.signOut();
+    } finally {
+      setIsOpen(false);
+      router.push("/");
+      router.refresh();
+    }
+  };
+
+  const closeMobileMenu = () => {
+    setIsOpen(false);
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -84,32 +85,27 @@ export default function Navbar() {
 
         {/* Desktop Navigation */}
         <nav className="hidden items-center gap-6 md:flex">
-          {navLinks.map((link) => (
-            <Link
-              key={link.name}
-              href={link.href}
-              className={`text-sm font-medium transition-colors hover:text-primary ${
-                pathname === link.href
-                  ? "font-semibold text-primary"
-                  : "text-muted-foreground"
-              }`}
-            >
-              {link.name}
-            </Link>
-          ))}
+          {navLinks.map((link) => {
+            const isActive =
+              link.href === "/"
+                ? pathname === "/"
+                : pathname === link.href ||
+                  pathname.startsWith(`${link.href}/`);
 
-          {session && (
-            <Link
-              href={dashboardPath}
-              className={`text-sm font-medium transition-colors hover:text-primary ${
-                pathname.startsWith("/dashboard")
-                  ? "font-semibold text-primary"
-                  : "text-muted-foreground"
-              }`}
-            >
-              Dashboard
-            </Link>
-          )}
+            return (
+              <Link
+                key={link.name}
+                href={link.href}
+                className={`text-sm font-medium transition-colors hover:text-primary ${
+                  isActive
+                    ? "font-semibold text-primary"
+                    : "text-muted-foreground"
+                }`}
+              >
+                {link.name}
+              </Link>
+            );
+          })}
         </nav>
 
         {/* Desktop Actions */}
@@ -118,10 +114,13 @@ export default function Navbar() {
           <ThemeToggle />
 
           {session ? (
+            /* Authenticated Profile Dropdown */
             <DropdownMenu>
               <DropdownMenuTrigger className="flex items-center gap-2 rounded-full px-2 py-1.5 transition-colors hover:bg-muted">
                 <div className="flex h-9 w-9 items-center justify-center rounded-full border border-primary/20 bg-primary/10 font-semibold text-primary">
-                  {session.user.name?.charAt(0) || <User className="h-4 w-4" />}
+                  {session.user.name?.charAt(0)?.toUpperCase() || (
+                    <User className="h-4 w-4" />
+                  )}
                 </div>
 
                 <span className="max-w-[120px] truncate text-sm font-medium text-foreground">
@@ -130,13 +129,22 @@ export default function Navbar() {
               </DropdownMenuTrigger>
 
               <DropdownMenuContent align="end" className="w-56 p-2">
-                <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-                  Signed in as{" "}
-                  <span className="text-foreground">{session.user.email}</span>
+                {/* User Name */}
+                <div className="px-2 py-2">
+                  <p className="text-sm font-semibold text-foreground">
+                    {session.user.name || "My Account"}
+                  </p>
+
+                  {session.user.email && (
+                    <p className="truncate text-xs text-muted-foreground">
+                      {session.user.email}
+                    </p>
+                  )}
                 </div>
 
                 <DropdownMenuSeparator />
 
+                {/* Dashboard */}
                 <DropdownMenuItem
                   onClick={() => router.push(dashboardPath)}
                   className="flex cursor-pointer items-center gap-2"
@@ -145,16 +153,9 @@ export default function Navbar() {
                   Dashboard
                 </DropdownMenuItem>
 
-                <DropdownMenuItem
-                  onClick={() => router.push(`${dashboardPath}/profile`)}
-                  className="flex cursor-pointer items-center gap-2"
-                >
-                  <User className="h-4 w-4" />
-                  My Profile
-                </DropdownMenuItem>
-
                 <DropdownMenuSeparator />
 
+                {/* Logout */}
                 <DropdownMenuItem
                   onClick={handleSignOut}
                   className="flex cursor-pointer items-center gap-2 text-destructive focus:text-destructive"
@@ -165,6 +166,7 @@ export default function Navbar() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
+            /* Public Authentication Actions */
             <div className="flex items-center gap-3">
               <Link
                 href="/sign-in"
@@ -204,65 +206,59 @@ export default function Navbar() {
                 {/* Mobile Logo */}
                 <Link
                   href="/"
-                  onClick={() => setIsOpen(false)}
+                  onClick={closeMobileMenu}
                   className="flex items-center gap-2"
                 >
                   <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                     <Scissors className="h-4 w-4 rotate-45" />
                   </div>
 
-                  <span className="text-lg font-bold tracking-tight">
+                  <span className="text-lg font-bold tracking-tight text-foreground">
                     Salon<span className="text-primary">Book</span>
                   </span>
                 </Link>
 
                 <hr className="border-muted" />
 
-                {/* Mobile Navigation Links */}
+                {/* Mobile Navigation */}
                 <nav className="flex flex-col gap-3">
-                  {navLinks.map((link) => (
-                    <Link
-                      key={link.name}
-                      href={link.href}
-                      onClick={() => setIsOpen(false)}
-                      className={`rounded-md px-3 py-2 text-base font-medium transition-colors ${
-                        pathname === link.href
-                          ? "bg-primary/10 font-semibold text-primary"
-                          : "text-muted-foreground hover:bg-muted"
-                      }`}
-                    >
-                      {link.name}
-                    </Link>
-                  ))}
+                  {navLinks.map((link) => {
+                    const isActive =
+                      link.href === "/"
+                        ? pathname === "/"
+                        : pathname === link.href ||
+                          pathname.startsWith(`${link.href}/`);
 
-                  {session && (
-                    <Link
-                      href={dashboardPath}
-                      onClick={() => setIsOpen(false)}
-                      className={`rounded-md px-3 py-2 text-base font-medium transition-colors ${
-                        pathname.startsWith("/dashboard")
-                          ? "bg-primary/10 font-semibold text-primary"
-                          : "text-muted-foreground hover:bg-muted"
-                      }`}
-                    >
-                      Dashboard
-                    </Link>
-                  )}
+                    return (
+                      <Link
+                        key={link.name}
+                        href={link.href}
+                        onClick={closeMobileMenu}
+                        className={`rounded-md px-3 py-2 text-base font-medium transition-colors ${
+                          isActive
+                            ? "bg-primary/10 font-semibold text-primary"
+                            : "text-muted-foreground hover:bg-muted"
+                        }`}
+                      >
+                        {link.name}
+                      </Link>
+                    );
+                  })}
                 </nav>
-              </div>
 
-              {/* Mobile Auth Actions */}
-              <div className="flex flex-col gap-3 border-t pt-4">
-                {session ? (
-                  <div className="flex flex-col gap-3">
-                    <div className="flex items-center gap-3 px-2 py-1">
+                {/* Mobile Authenticated User */}
+                {session && (
+                  <div className="rounded-lg border bg-muted/30 p-3">
+                    <div className="flex items-center gap-3">
                       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 font-bold text-primary">
-                        {session.user.name?.charAt(0) || "U"}
+                        {session.user.name?.charAt(0)?.toUpperCase() || (
+                          <User className="h-4 w-4" />
+                        )}
                       </div>
 
-                      <div className="flex flex-col overflow-hidden">
-                        <span className="truncate text-sm font-semibold">
-                          {session.user.name}
+                      <div className="flex min-w-0 flex-col">
+                        <span className="truncate text-sm font-semibold text-foreground">
+                          {session.user.name || "My Account"}
                         </span>
 
                         <span className="truncate text-xs text-muted-foreground">
@@ -271,23 +267,39 @@ export default function Navbar() {
                       </div>
                     </div>
 
-                    <Button
-                      variant="destructive"
+                    <DropdownMenuSeparator />
+
+                    <button
+                      type="button"
                       onClick={() => {
-                        setIsOpen(false);
-                        handleSignOut();
+                        closeMobileMenu();
+                        router.push(dashboardPath);
                       }}
-                      className="w-full justify-start gap-2"
+                      className="mt-2 flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
                     >
-                      <LogOut className="h-4 w-4" />
-                      Logout
-                    </Button>
+                      <LayoutDashboard className="h-4 w-4" />
+                      Dashboard
+                    </button>
                   </div>
+                )}
+              </div>
+
+              {/* Mobile Authentication Actions */}
+              <div className="flex flex-col gap-3 border-t pt-4">
+                {session ? (
+                  <Button
+                    variant="destructive"
+                    onClick={handleSignOut}
+                    className="w-full justify-start gap-2"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Logout
+                  </Button>
                 ) : (
                   <div className="flex flex-col gap-2.5">
                     <Link
                       href="/sign-in"
-                      onClick={() => setIsOpen(false)}
+                      onClick={closeMobileMenu}
                       className="inline-flex h-10 w-full items-center justify-center rounded-md border border-input bg-background text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
                     >
                       <LogIn className="mr-2 h-4 w-4" />
@@ -296,7 +308,7 @@ export default function Navbar() {
 
                     <Link
                       href="/sign-up"
-                      onClick={() => setIsOpen(false)}
+                      onClick={closeMobileMenu}
                       className="inline-flex h-10 w-full items-center justify-center rounded-md bg-primary text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
                     >
                       <UserPlus className="mr-2 h-4 w-4" />
