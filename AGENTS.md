@@ -1,6 +1,6 @@
 # salon-book-client
 
-Next.js 16 client app (App Router) — currently a fresh create-next-app scaffold; no tests, CI, or backend integration yet.
+"SalonBook" — salon appointment booking platform. Next.js 16 App Router + TypeScript + Tailwind CSS v4. Early scaffold: navbar/theme done, home page is an empty shell, no auth, backend, tests, or CI yet.
 
 <!-- BEGIN:nextjs-agent-rules -->
 
@@ -14,21 +14,26 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## Commands
 
-- `npm run dev` / `npm run build` / `npm start` — dev, production build, serve build
-- `npm run lint` — ESLint v9 flat config (`eslint.config.mjs`), no path args needed
-- No test runner and no `typecheck` script; use `npx tsc --noEmit` for type checking
-- npm with `package-lock.json` — do not use yarn/pnpm/bun
+- `npm run dev` / `npm run build` / `npm start`
+- `npm run lint` — ESLint v9 flat config (`eslint.config.mjs`); no path args
+- No test runner and no `typecheck` script; use `npx tsc --noEmit` for type checking (`.next/types` is gitignored but referenced by tsconfig — run `next dev`/`next build` first on a fresh clone)
+- npm + `package-lock.json` only; no workspace/monorepo
 
 ## Toolchain quirks (all non-default)
 
-- `next.config.ts` enables `cacheComponents`, `partialPrefetching`, and `reactCompiler` — caching/PPR semantics differ from classic Next.js; check `node_modules/next/dist/docs/01-app/01-getting-started/08-caching.md` before adding data fetching or route handlers
-- CSS pipeline: Tailwind CSS **v4** via `@tailwindcss/turbopack` loader in `next.config.ts`; styles use `@import "tailwindcss"` and `@theme inline` in `src/app/globals.css` — there is no `tailwind.config.js` and no PostCSS config
-- `babel-plugin-react-compiler` is a devDependency backing `reactCompiler: true`
-- Path alias `@/*` → `./src/*` (tsconfig); app source lives in `src/app/`, not root `app/`
-- Layouts/pages use generated global types (e.g. `LayoutProps<"/">` in `src/app/layout.tsx`) — these come from `.next/types`, so run `next dev` or `next build` once before `tsc --noEmit` on a fresh clone or tsc will fail on unknown globals
+- `next.config.ts`: `cacheComponents`, `partialPrefetching`, `reactCompiler` — caching/PPR semantics differ from classic Next.js; see `node_modules/next/dist/docs/01-app/01-getting-started/08-caching.md` before adding data fetching
+- Tailwind **v4** CSS-first: no `tailwind.config.*` / PostCSS config; `@tailwindcss/turbopack` loader in `next.config.ts`; theme lives in `src/app/globals.css` (`@import "tailwindcss"`, `@theme inline`, `@custom-variant dark (&:is(.dark *))`)
+- Shadcn **v4** (`base-nova` style): primitives are **Base UI (`@base-ui/react`), not Radix**; `cn` comes from the `cn` package and is re-exported via `src/lib/utils.ts`; components import `cn` from `"cn"` directly, not `@/lib/utils`
+- `components.json`: style `base-nova`, `baseColor: zinc`, aliases `@/components/ui`, `@/lib/utils`, `@/hooks`
+- Shadcn **dark mode is class-based** (`.dark`), driven by `next-themes` (`src/components/providers/theme-provider.tsx`, `attribute="class"`); root layout sets `<html suppressHydrationWarning>`
+- CSS vars use OKLCH; zinc values were applied by hand (CLI preset param 400s against the registry) — don't regenerate `globals.css` via `shadcn init -f` or you'll lose them
+- Path alias `@/*` → `./src/*`; source in `src/app/`, not root `app/`
 
-## Conventions / state
+## App state / gotchas
 
-- Geist font via `next/font/google` in `layout.tsx`; Tailwind v4 theme tokens (`--color-background`, `--font-sans`, …) map CSS vars declared in `:root`/`@media (prefers-color-scheme: dark)` in `globals.css`
-- `next-env.d.ts` and `.next/` are gitignored (Next regenerates them); `next-env.d.ts` is managed by Next — don't hand-edit
-- No environment variables, secrets, or `.env` files are set up yet
+- `src/app/page.tsx` is an empty `<div>` shell — safe to build out
+- `src/app/layout.tsx` no longer imports `next/font/google`; `globals.css` still maps `--font-sans` → `var(--font-geist-sans)` which is now undefined, and it ends with duplicate trailing `:root`/`.dark` blocks (hex `#ffffff`/`#09090b`) that override the zinc OKLCH values — inconsistent; verify fonts/theme before styling work
+- Auth is **not wired**: `better-auth` (^1.7.25) and `sonner` installed but unused; `src/components/sections/Navbar.tsx` uses a hardcoded mock `Session` (`null`) with `role` → dashboard path mapping (`/dashboard/admin` vs `/dashboard/customer`) — replace with Better Auth session when setting up auth
+- Navbar is `"use client"` and imported into the server root layout; keep providers client-side
+- Icons: `lucide-react`; 16 shadcn components in `src/components/ui/`
+- `.env*` is gitignored; no env setup exists yet
