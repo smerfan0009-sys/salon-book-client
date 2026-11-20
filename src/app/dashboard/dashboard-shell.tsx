@@ -5,6 +5,10 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
   CalendarDays,
+  CreditCard,
+  Plus,
+  ListChecks,
+  Users,
   LayoutDashboard,
   Menu,
   Scissors,
@@ -28,16 +32,31 @@ const navigation = {
       icon: LayoutDashboard,
     },
     {
-      href: "/services",
-      label: "Browse Services",
+      href: "/dashboard/admin/services",
+      label: "Manage Services",
       icon: Scissors,
     },
+    { href: "/dashboard/admin/services/new", label: "Add Service", icon: Plus },
+    { href: "/dashboard/admin/appointments", label: "Manage Appointments", icon: ListChecks },
+    { href: "/dashboard/admin/users", label: "Manage Users", icon: Users },
+    { href: "/dashboard/admin/transactions", label: "Transactions", icon: CreditCard },
+    { href: "/dashboard/admin/profile", label: "My Profile", icon: User },
   ],
   customer: [
     {
       href: "/dashboard/customer",
       label: "Overview",
       icon: LayoutDashboard,
+    },
+    {
+      href: "/dashboard/customer/appointments",
+      label: "My Appointments",
+      icon: CalendarDays,
+    },
+    {
+      href: "/dashboard/customer/profile",
+      label: "My Profile",
+      icon: User,
     },
     {
       href: "/services",

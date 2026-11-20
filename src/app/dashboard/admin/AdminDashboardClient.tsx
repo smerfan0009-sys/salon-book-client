@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 import {
   ShieldCheck,
@@ -404,7 +405,13 @@ export default function AdminDashboardClient() {
 
       {/* OVERVIEW */}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="flex flex-wrap gap-3">
+        <Link href="/dashboard/admin/services" className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">Manage Services</Link>
+        <Link href="/dashboard/admin/appointments" className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted">Manage Appointments</Link>
+        <Link href="/dashboard/admin/users" className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted">Manage Users</Link>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Users</CardTitle>
@@ -418,6 +425,28 @@ export default function AdminDashboardClient() {
             <p className="text-xs text-muted-foreground">
               Registered platform accounts
             </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Confirmed</CardTitle>
+            <CheckCircle2 className="size-5 text-emerald-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{overview?.confirmedAppointments ?? 0}</div>
+            <p className="text-xs text-muted-foreground">Confirmed bookings</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Cancelled</CardTitle>
+            <XCircle className="size-5 text-red-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{overview?.cancelledAppointments ?? 0}</div>
+            <p className="text-xs text-muted-foreground">Cancelled bookings</p>
           </CardContent>
         </Card>
 

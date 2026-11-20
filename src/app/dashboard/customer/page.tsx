@@ -14,7 +14,6 @@ import {
   AlertCircle,
   ArrowRight,
   MessageSquare,
-  CreditCard,
   Eye,
   XCircle,
   Tag,
@@ -466,6 +465,11 @@ export default function CustomerDashboardPage() {
         </p>
       </div>
 
+      <div className="flex flex-wrap gap-3">
+        <Link href="/dashboard/customer/appointments" className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">My Appointments</Link>
+        <Link href="/dashboard/customer/profile" className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted">My Profile</Link>
+      </div>
+
       {/* Appointment Statistics */}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -637,12 +641,7 @@ export default function CustomerDashboardPage() {
                   matchedService,
                 );
 
-                const isPaid =
-                  appointment.paymentStatus?.toLowerCase() === "paid";
-
                 const isPending = appointment.status === "Pending";
-
-                const isConfirmed = appointment.status === "Confirmed";
 
                 const isCancelling = cancellingId === appointment._id;
 
@@ -785,17 +784,6 @@ export default function CustomerDashboardPage() {
                           </button>
                         )}
 
-                        {/* Pay: Confirmed and Unpaid Only */}
-
-                        {isConfirmed && !isPaid && (
-                          <Link
-                            href={`/payment?appointmentId=${encodeURIComponent(appointment._id)}`}
-                            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
-                          >
-                            <CreditCard className="size-4" />
-                            Pay Now
-                          </Link>
-                        )}
                       </div>
                     </div>
                   </div>
