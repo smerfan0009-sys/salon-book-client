@@ -46,11 +46,8 @@ import { apiFetch } from "@/lib/api-fetch";
 /*                                  Constants                                 */
 /* -------------------------------------------------------------------------- */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, "");
-
-// ⚠️ Adjust these to match your backend
 const SERVICE_ENDPOINT = (id: string) =>
-  `${API_BASE_URL}/api/services/${encodeURIComponent(id)}`;
+  `/api/services/${encodeURIComponent(id)}`;
 const APPOINTMENTS_ENDPOINT = "/api/appointments";
 const LOGIN_PATH = "/sign-in";
 
@@ -289,13 +286,7 @@ function useServiceDetails(id: string, enabled: boolean) {
       setError(null);
 
       try {
-        if (!API_BASE_URL) {
-          throw new Error(
-            "API URL is not configured. Check NEXT_PUBLIC_API_URL.",
-          );
-        }
-
-        const response = await fetch(SERVICE_ENDPOINT(id), {
+        const response = await apiFetch(SERVICE_ENDPOINT(id), {
           method: "GET",
           cache: "no-store",
           signal: controller.signal,
@@ -718,12 +709,6 @@ function BookingForm({
     setSubmitting(true);
 
     try {
-      if (!API_BASE_URL) {
-        throw new Error(
-          "API URL is not configured. Check NEXT_PUBLIC_API_URL.",
-        );
-      }
-
       const response = await apiFetch(APPOINTMENTS_ENDPOINT, {
         method: "POST",
         headers: {
@@ -731,9 +716,9 @@ function BookingForm({
         },
         body: JSON.stringify({
           serviceId: service._id,
-          date,
-          time,
-          notes: notes.trim() || undefined,
+          appointmentDate: date,
+          timeSlot: time,
+          additionalMessage: notes.trim() || undefined,
         }),
       });
 
@@ -818,7 +803,7 @@ function BookingForm({
           htmlFor="appointment-date"
           className="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300"
         >
-          Preferred date
+          Appointment date
         </label>
 
         <input
@@ -853,7 +838,7 @@ function BookingForm({
           htmlFor="appointment-time"
           className="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300"
         >
-          Preferred time
+          Available time slot
         </label>
 
         <select
@@ -897,7 +882,7 @@ function BookingForm({
           htmlFor="appointment-notes"
           className="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300"
         >
-          Notes <span className="font-normal text-zinc-400">(optional)</span>
+          Additional message <span className="font-normal text-zinc-400">(optional)</span>
         </label>
 
         <textarea
