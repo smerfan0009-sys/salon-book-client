@@ -1,4 +1,4 @@
-import DashboardShell from "@/components/dashboard/dashboard-shell";
+import DashboardShell from "@/app/dashboard/dashboard-shell";
 
 export default function AdminDashboardLayout({
   children,

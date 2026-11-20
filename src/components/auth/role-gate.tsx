@@ -41,16 +41,17 @@ export default function RoleGate({
     }
   }, [isPending, session?.user, currentRole, role, router]);
 
-  if (isPending || !allowed) {
-    return (
-      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
-        <div className="flex flex-col items-center gap-3 text-muted-foreground">
-          <Loader2 className="size-6 animate-spin" />
-          <p className="text-sm">Checking your access...</p>
+  return (
+    <>
+      {children}
+      {(isPending || !allowed) && (
+        <div className="fixed inset-0 z-50 flex min-h-[calc(100vh-4rem)] items-center justify-center bg-background">
+          <div className="flex flex-col items-center gap-3 text-muted-foreground">
+            <Loader2 className="size-6 animate-spin" />
+            <p className="text-sm">Checking your access...</p>
+          </div>
         </div>
-      </div>
-    );
-  }
-
-  return <>{children}</>;
+      )}
+    </>
+  );
 }
