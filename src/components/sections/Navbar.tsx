@@ -16,7 +16,6 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,8 +33,8 @@ export default function Navbar() {
 
   const [isOpen, setIsOpen] = useState(false);
 
-  // Better Auth session (cookie-based; shared with the Express API).
   const { data: session } = useSession();
+  const profileImage = session?.user?.image;
 
   const userRole =
     (session?.user as { role?: string } | undefined)?.role ?? "customer";
@@ -61,6 +60,19 @@ export default function Navbar() {
   const closeMobileMenu = () => {
     setIsOpen(false);
   };
+
+  const handleAvatarError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    e.currentTarget.style.display = "none";
+    const fallback = e.currentTarget.nextElementSibling as HTMLElement | null;
+    if (fallback) {
+      fallback.style.display = "flex";
+    }
+  };
+
+  const renderFallbackContent = () =>
+    session?.user?.name?.charAt(0)?.toUpperCase() || (
+      <User className="h-4 w-4" />
+    );
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -110,17 +122,28 @@ export default function Navbar() {
 
         {/* Desktop Actions */}
         <div className="hidden items-center gap-4 md:flex">
-          {/* Theme Toggle */}
           <ThemeToggle />
 
           {session ? (
-            /* Authenticated Profile Dropdown */
             <DropdownMenu>
               <DropdownMenuTrigger className="flex items-center gap-2 rounded-full px-2 py-1.5 transition-colors hover:bg-muted">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full border border-primary/20 bg-primary/10 font-semibold text-primary">
-                  {session.user.name?.charAt(0)?.toUpperCase() || (
-                    <User className="h-4 w-4" />
-                  )}
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-primary/20 bg-primary/10 font-semibold text-primary">
+                  {profileImage ? (
+                    <img
+                      key={profileImage}
+                      src={profileImage}
+                      alt={session.user.name || "Profile"}
+                      className="h-full w-full object-cover"
+                      referrerPolicy="no-referrer"
+                      onError={handleAvatarError}
+                    />
+                  ) : null}
+                  <span
+                    style={{ display: profileImage ? "none" : "flex" }}
+                    className="h-full w-full items-center justify-center"
+                  >
+                    {renderFallbackContent()}
+                  </span>
                 </div>
 
                 <span className="max-w-[120px] truncate text-sm font-medium text-foreground">
@@ -129,7 +152,6 @@ export default function Navbar() {
               </DropdownMenuTrigger>
 
               <DropdownMenuContent align="end" className="w-56 p-2">
-                {/* User Name */}
                 <div className="px-2 py-2">
                   <p className="text-sm font-semibold text-foreground">
                     {session.user.name || "My Account"}
@@ -144,7 +166,6 @@ export default function Navbar() {
 
                 <DropdownMenuSeparator />
 
-                {/* Dashboard */}
                 <DropdownMenuItem
                   onClick={() => router.push(dashboardPath)}
                   className="flex cursor-pointer items-center gap-2"
@@ -155,7 +176,6 @@ export default function Navbar() {
 
                 <DropdownMenuSeparator />
 
-                {/* Logout */}
                 <DropdownMenuItem
                   onClick={handleSignOut}
                   className="flex cursor-pointer items-center gap-2 text-destructive focus:text-destructive"
@@ -166,7 +186,6 @@ export default function Navbar() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            /* Public Authentication Actions */
             <div className="flex items-center gap-3">
               <Link
                 href="/sign-in"
@@ -189,7 +208,6 @@ export default function Navbar() {
 
         {/* Mobile Actions */}
         <div className="flex items-center gap-2 md:hidden">
-          {/* Mobile Theme Toggle */}
           <ThemeToggle />
 
           <Sheet open={isOpen} onOpenChange={setIsOpen}>
@@ -250,10 +268,23 @@ export default function Navbar() {
                 {session && (
                   <div className="rounded-lg border bg-muted/30 p-3">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 font-bold text-primary">
-                        {session.user.name?.charAt(0)?.toUpperCase() || (
-                          <User className="h-4 w-4" />
-                        )}
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 font-bold text-primary">
+                        {profileImage ? (
+                          <img
+                            key={profileImage}
+                            src={profileImage}
+                            alt={session.user.name || "Profile"}
+                            className="h-full w-full object-cover"
+                            referrerPolicy="no-referrer"
+                            onError={handleAvatarError}
+                          />
+                        ) : null}
+                        <span
+                          style={{ display: profileImage ? "none" : "flex" }}
+                          className="h-full w-full items-center justify-center"
+                        >
+                          {renderFallbackContent()}
+                        </span>
                       </div>
 
                       <div className="flex min-w-0 flex-col">
