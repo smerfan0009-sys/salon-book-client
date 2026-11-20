@@ -75,28 +75,31 @@ export default function Navbar() {
     );
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
+    <header className="sticky top-3 z-50 w-full px-4 transition-all duration-500 sm:px-6 lg:px-8">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between rounded-2xl border border-amber-500/25 bg-white/65 px-4 shadow-lg shadow-amber-950/5 backdrop-blur-xl transition-all duration-500 hover:border-amber-500/40 hover:shadow-amber-500/10 md:px-6 dark:border-amber-400/20 dark:bg-zinc-950/65 dark:shadow-black/40 dark:hover:border-amber-400/35">
         {/* Logo */}
-        <Link href="/" className="group flex items-center gap-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md transition-transform group-hover:scale-105">
-            <Scissors className="h-5 w-5 rotate-45" />
+        <Link href="/" className="group flex items-center gap-2.5">
+          <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 via-yellow-500 to-amber-600 text-zinc-950 shadow-md shadow-amber-500/25 transition-all duration-300 group-hover:scale-105 group-hover:rotate-6 group-hover:shadow-amber-500/40 dark:from-amber-400 dark:via-yellow-400 dark:to-amber-500">
+            <Scissors className="h-5 w-5 rotate-45 stroke-[2.2] transition-transform duration-300 group-hover:rotate-12" />
           </div>
 
           <div className="flex flex-col">
-            <span className="flex items-center gap-1 text-xl font-bold tracking-tight text-foreground">
-              Salon<span className="text-primary">Book</span>
-              <Sparkles className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
+            <span className="flex items-center gap-1 text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
+              Salon
+              <span className="bg-gradient-to-r from-amber-600 via-yellow-600 to-amber-500 bg-clip-text text-transparent dark:from-amber-300 dark:via-yellow-300 dark:to-amber-400">
+                Book
+              </span>
+              <Sparkles className="h-3.5 w-3.5 animate-pulse fill-amber-500 text-amber-600 transition-transform duration-300 group-hover:scale-125 group-hover:rotate-12 dark:fill-amber-400 dark:text-amber-300" />
             </span>
 
-            <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
+            <span className="text-[10px] font-medium uppercase tracking-widest text-amber-800/75 dark:text-amber-300/70">
               Appointment Platform
             </span>
           </div>
         </Link>
 
         {/* Desktop Navigation */}
-        <nav className="hidden items-center gap-6 md:flex">
+        <nav className="hidden items-center gap-7 md:flex">
           {navLinks.map((link) => {
             const isActive =
               link.href === "/"
@@ -108,26 +111,31 @@ export default function Navbar() {
               <Link
                 key={link.name}
                 href={link.href}
-                className={`text-sm font-medium transition-colors hover:text-primary ${
+                className={`group relative py-1 text-sm font-medium transition-colors duration-300 hover:text-amber-600 dark:hover:text-amber-400 ${
                   isActive
-                    ? "font-semibold text-primary"
-                    : "text-muted-foreground"
+                    ? "font-semibold text-amber-600 dark:text-amber-400"
+                    : "text-zinc-700 dark:text-zinc-300"
                 }`}
               >
                 {link.name}
+                <span
+                  className={`absolute bottom-0 left-0 h-[2px] rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 transition-all duration-300 ease-out ${
+                    isActive ? "w-full" : "w-0 group-hover:w-full"
+                  }`}
+                />
               </Link>
             );
           })}
         </nav>
 
         {/* Desktop Actions */}
-        <div className="hidden items-center gap-4 md:flex">
+        <div className="hidden items-center gap-3 md:flex">
           <ThemeToggle />
 
           {session ? (
             <DropdownMenu>
-              <DropdownMenuTrigger className="flex items-center gap-2 rounded-full px-2 py-1.5 transition-colors hover:bg-muted">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-primary/20 bg-primary/10 font-semibold text-primary">
+              <DropdownMenuTrigger className="group flex items-center gap-2 rounded-full border border-transparent px-2 py-1.5 transition-all duration-300 hover:border-amber-500/25 hover:bg-amber-500/10 dark:hover:border-amber-400/25 dark:hover:bg-amber-400/10">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-amber-500/50 bg-gradient-to-br from-amber-100 to-yellow-100 font-semibold text-amber-800 transition-transform duration-300 group-hover:scale-105 dark:border-amber-400/50 dark:from-amber-950/80 dark:to-yellow-950/60 dark:text-amber-300">
                   {profileImage ? (
                     <img
                       key={profileImage}
@@ -146,39 +154,42 @@ export default function Navbar() {
                   </span>
                 </div>
 
-                <span className="max-w-[120px] truncate text-sm font-medium text-foreground">
+                <span className="max-w-[120px] truncate text-sm font-medium text-zinc-800 dark:text-zinc-200">
                   {session.user.name || "My Account"}
                 </span>
               </DropdownMenuTrigger>
 
-              <DropdownMenuContent align="end" className="w-56 p-2">
+              <DropdownMenuContent
+                align="end"
+                className="mt-2 w-56 rounded-xl border-amber-500/20 bg-white/90 p-2 backdrop-blur-xl dark:border-amber-400/20 dark:bg-zinc-950/90"
+              >
                 <div className="px-2 py-2">
-                  <p className="text-sm font-semibold text-foreground">
+                  <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                     {session.user.name || "My Account"}
                   </p>
 
                   {session.user.email && (
-                    <p className="truncate text-xs text-muted-foreground">
+                    <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">
                       {session.user.email}
                     </p>
                   )}
                 </div>
 
-                <DropdownMenuSeparator />
+                <DropdownMenuSeparator className="bg-amber-500/15 dark:bg-amber-400/15" />
 
                 <DropdownMenuItem
                   onClick={() => router.push(dashboardPath)}
-                  className="flex cursor-pointer items-center gap-2"
+                  className="flex cursor-pointer items-center gap-2 rounded-lg transition-colors focus:bg-amber-500/10 focus:text-amber-700 dark:focus:bg-amber-400/10 dark:focus:text-amber-300"
                 >
-                  <LayoutDashboard className="h-4 w-4" />
+                  <LayoutDashboard className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                   Dashboard
                 </DropdownMenuItem>
 
-                <DropdownMenuSeparator />
+                <DropdownMenuSeparator className="bg-amber-500/15 dark:bg-amber-400/15" />
 
                 <DropdownMenuItem
                   onClick={handleSignOut}
-                  className="flex cursor-pointer items-center gap-2 text-destructive focus:text-destructive"
+                  className="flex cursor-pointer items-center gap-2 rounded-lg text-red-600 transition-colors focus:bg-red-500/10 focus:text-red-700 dark:text-red-400 dark:focus:bg-red-500/15 dark:focus:text-red-300"
                 >
                   <LogOut className="h-4 w-4" />
                   Logout
@@ -186,20 +197,21 @@ export default function Navbar() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
               <Link
                 href="/sign-in"
-                className="inline-flex h-9 items-center justify-center rounded-md px-4 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+                className="group inline-flex h-9 items-center justify-center rounded-xl px-4 text-sm font-medium text-zinc-700 transition-all duration-300 hover:bg-amber-500/10 hover:text-amber-700 active:scale-95 dark:text-zinc-300 dark:hover:bg-amber-400/10 dark:hover:text-amber-300"
               >
-                <LogIn className="mr-1.5 h-4 w-4" />
+                <LogIn className="mr-1.5 h-4 w-4 text-amber-600 transition-transform duration-300 group-hover:-translate-x-0.5 dark:text-amber-400" />
                 Sign In
               </Link>
 
               <Link
                 href="/sign-up"
-                className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+                className="group relative inline-flex h-9 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 px-4 text-sm font-semibold text-zinc-950 shadow-sm shadow-amber-500/25 transition-all duration-300 hover:scale-[1.03] hover:shadow-md hover:shadow-amber-500/35 active:scale-95 dark:from-amber-400 dark:via-yellow-400 dark:to-amber-500"
               >
-                <UserPlus className="mr-1.5 h-4 w-4" />
+                <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent transition-transform duration-700 ease-in-out group-hover:translate-x-full" />
+                <UserPlus className="mr-1.5 h-4 w-4 transition-transform duration-300 group-hover:scale-110" />
                 Sign Up
               </Link>
             </div>
@@ -211,35 +223,38 @@ export default function Navbar() {
           <ThemeToggle />
 
           <Sheet open={isOpen} onOpenChange={setIsOpen}>
-            <SheetTrigger className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-input bg-background text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground">
+            <SheetTrigger className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-amber-500/25 bg-white/70 text-amber-700 shadow-sm transition-all duration-300 hover:bg-amber-500/15 active:scale-95 dark:border-amber-400/25 dark:bg-zinc-900/70 dark:text-amber-300 dark:hover:bg-amber-400/15">
               <Menu className="h-5 w-5" />
               <span className="sr-only">Toggle Menu</span>
             </SheetTrigger>
 
             <SheetContent
               side="right"
-              className="flex w-[300px] flex-col justify-between p-6 sm:w-[350px]"
+              className="flex w-[300px] flex-col justify-between border-l-amber-500/20 bg-white/85 p-6 backdrop-blur-xl sm:w-[350px] dark:border-l-amber-400/20 dark:bg-zinc-950/85"
             >
               <div className="flex flex-col gap-6">
                 {/* Mobile Logo */}
                 <Link
                   href="/"
                   onClick={closeMobileMenu}
-                  className="flex items-center gap-2"
+                  className="group flex items-center gap-2"
                 >
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                    <Scissors className="h-4 w-4 rotate-45" />
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 via-yellow-500 to-amber-600 text-zinc-950 shadow-sm transition-transform duration-300 group-hover:rotate-6 dark:from-amber-400 dark:via-yellow-400 dark:to-amber-500">
+                    <Scissors className="h-4 w-4 rotate-45 stroke-[2.2]" />
                   </div>
 
-                  <span className="text-lg font-bold tracking-tight text-foreground">
-                    Salon<span className="text-primary">Book</span>
+                  <span className="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
+                    Salon
+                    <span className="bg-gradient-to-r from-amber-600 via-yellow-600 to-amber-500 bg-clip-text text-transparent dark:from-amber-300 dark:via-yellow-300 dark:to-amber-400">
+                      Book
+                    </span>
                   </span>
                 </Link>
 
-                <hr className="border-muted" />
+                <hr className="border-amber-500/20 dark:border-amber-400/20" />
 
                 {/* Mobile Navigation */}
-                <nav className="flex flex-col gap-3">
+                <nav className="flex flex-col gap-2">
                   {navLinks.map((link) => {
                     const isActive =
                       link.href === "/"
@@ -252,10 +267,10 @@ export default function Navbar() {
                         key={link.name}
                         href={link.href}
                         onClick={closeMobileMenu}
-                        className={`rounded-md px-3 py-2 text-base font-medium transition-colors ${
+                        className={`rounded-xl px-3.5 py-2.5 text-base font-medium transition-all duration-300 hover:translate-x-1 ${
                           isActive
-                            ? "bg-primary/10 font-semibold text-primary"
-                            : "text-muted-foreground hover:bg-muted"
+                            ? "bg-amber-500/15 font-semibold text-amber-700 dark:bg-amber-400/15 dark:text-amber-300"
+                            : "text-zinc-700 hover:bg-amber-500/10 dark:text-zinc-300 dark:hover:bg-amber-400/10"
                         }`}
                       >
                         {link.name}
@@ -266,9 +281,9 @@ export default function Navbar() {
 
                 {/* Mobile Authenticated User */}
                 {session && (
-                  <div className="rounded-lg border bg-muted/30 p-3">
+                  <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 backdrop-blur-md dark:border-amber-400/20 dark:bg-amber-400/5">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 font-bold text-primary">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-amber-500/40 bg-gradient-to-br from-amber-100 to-yellow-100 font-bold text-amber-800 dark:border-amber-400/40 dark:from-amber-950/80 dark:to-yellow-950/60 dark:text-amber-300">
                         {profileImage ? (
                           <img
                             key={profileImage}
@@ -288,17 +303,17 @@ export default function Navbar() {
                       </div>
 
                       <div className="flex min-w-0 flex-col">
-                        <span className="truncate text-sm font-semibold text-foreground">
+                        <span className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                           {session.user.name || "My Account"}
                         </span>
 
-                        <span className="truncate text-xs text-muted-foreground">
+                        <span className="truncate text-xs text-zinc-500 dark:text-zinc-400">
                           {session.user.email}
                         </span>
                       </div>
                     </div>
 
-                    <DropdownMenuSeparator />
+                    <DropdownMenuSeparator className="my-2 bg-amber-500/15 dark:bg-amber-400/15" />
 
                     <button
                       type="button"
@@ -306,9 +321,9 @@ export default function Navbar() {
                         closeMobileMenu();
                         router.push(dashboardPath);
                       }}
-                      className="mt-2 flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+                      className="mt-1 flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm font-medium text-zinc-800 transition-all duration-300 hover:translate-x-1 hover:bg-amber-500/10 hover:text-amber-700 dark:text-zinc-200 dark:hover:bg-amber-400/10 dark:hover:text-amber-300"
                     >
-                      <LayoutDashboard className="h-4 w-4" />
+                      <LayoutDashboard className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                       Dashboard
                     </button>
                   </div>
@@ -316,12 +331,12 @@ export default function Navbar() {
               </div>
 
               {/* Mobile Authentication Actions */}
-              <div className="flex flex-col gap-3 border-t pt-4">
+              <div className="flex flex-col gap-3 border-t border-amber-500/20 pt-4 dark:border-amber-400/20">
                 {session ? (
                   <Button
                     variant="destructive"
                     onClick={handleSignOut}
-                    className="w-full justify-start gap-2"
+                    className="w-full justify-start gap-2 rounded-xl bg-red-600 transition-transform active:scale-95 hover:bg-red-700"
                   >
                     <LogOut className="h-4 w-4" />
                     Logout
@@ -331,7 +346,7 @@ export default function Navbar() {
                     <Link
                       href="/sign-in"
                       onClick={closeMobileMenu}
-                      className="inline-flex h-10 w-full items-center justify-center rounded-md border border-input bg-background text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+                      className="inline-flex h-10 w-full items-center justify-center rounded-xl border border-amber-500/35 bg-white/70 text-sm font-medium text-amber-800 transition-all duration-300 hover:bg-amber-500/10 active:scale-95 dark:border-amber-400/35 dark:bg-zinc-900/70 dark:text-amber-300 dark:hover:bg-amber-400/10"
                     >
                       <LogIn className="mr-2 h-4 w-4" />
                       Sign In
@@ -340,8 +355,9 @@ export default function Navbar() {
                     <Link
                       href="/sign-up"
                       onClick={closeMobileMenu}
-                      className="inline-flex h-10 w-full items-center justify-center rounded-md bg-primary text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+                      className="group relative inline-flex h-10 w-full items-center justify-center overflow-hidden rounded-xl bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 text-sm font-semibold text-zinc-950 shadow-sm shadow-amber-500/25 transition-all duration-300 active:scale-95 dark:from-amber-400 dark:via-yellow-400 dark:to-amber-500"
                     >
+                      <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent transition-transform duration-700 ease-in-out group-hover:translate-x-full" />
                       <UserPlus className="mr-2 h-4 w-4" />
                       Sign Up
                     </Link>
