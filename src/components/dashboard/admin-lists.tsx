@@ -23,6 +23,11 @@ import {
   Inbox,
   CircleDollarSign,
   Trash2,
+  MessageSquare,
+  History,
+  Tag,
+  Timer,
+  Scissors,
 } from "lucide-react";
 
 import { toast } from "sonner";
@@ -67,6 +72,53 @@ const stamp = (date?: string) => {
   if (Number.isNaN(parsedDate.getTime())) return "—";
 
   return parsedDate.toLocaleString();
+};
+
+const formatDay = (date?: string) => {
+  if (!date) return "—";
+
+  const parsed = new Date(`${date}T00:00:00`);
+
+  if (Number.isNaN(parsed.getTime())) return date;
+
+  return parsed.toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+};
+
+const formatSlot = (time?: string) => {
+  if (!time) return "—";
+
+  const [h, m] = time.split(":");
+  const hour = Number(h);
+
+  if (Number.isNaN(hour)) return time;
+
+  return `${hour % 12 || 12}:${m} ${hour >= 12 ? "PM" : "AM"}`;
+};
+
+const shortId = (id?: string) => (id ? `#${String(id).slice(-10)}` : "—");
+
+const formatPrice = (price?: number | string) => {
+  if (price === undefined || price === null || price === "") return null;
+
+  const numeric = Number(price);
+
+  return Number.isNaN(numeric)
+    ? String(price)
+    : `৳${numeric.toLocaleString("en-BD")}`;
+};
+
+const formatDuration = (duration?: number | string) => {
+  if (duration === undefined || duration === null || duration === "")
+    return null;
+
+  return typeof duration === "number" || /^\d+$/.test(String(duration))
+    ? `${duration} min`
+    : String(duration);
 };
 
 const getInitials = (name?: string) => {
@@ -193,6 +245,50 @@ function MetricCard({
 function MetricGrid({ children }: { children: ReactNode }) {
   return (
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{children}</div>
+  );
+}
+
+function DetailItem({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: ReactNode;
+  icon?: ReactNode;
+}) {
+  return (
+    <div className="rounded-lg bg-muted/50 p-3">
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        {icon}
+        {label}
+      </div>
+
+      <p className="mt-1 break-words text-sm font-medium">{value}</p>
+    </div>
+  );
+}
+
+function ServiceThumb({ src, alt }: { src?: string; alt: string }) {
+  const [failed, setFailed] = useState(false);
+
+  return (
+    <div className="h-20 w-24 shrink-0 overflow-hidden rounded-lg bg-muted sm:h-24 sm:w-32">
+      {src && !failed ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={src}
+          alt={alt}
+          loading="lazy"
+          className="h-full w-full object-cover"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <div className="flex h-full items-center justify-center">
+          <Scissors className="size-7 text-muted-foreground" />
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -362,6 +458,7 @@ export function AppointmentList() {
   const [deleteAllOpen, setDeleteAllOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [services, setServices] = useState<any[]>([]);
 
   const load = useCallback(async (showLoader = true) => {
     if (showLoader) setLoading(true);
@@ -372,6 +469,17 @@ export function AppointmentList() {
       });
 
       setItems(response.data || []);
+
+      // Service details are optional: appointments still work if this fails
+      try {
+        const serviceResponse = await request("/api/services", {
+          cache: "no-store",
+        });
+
+        setServices(serviceResponse.data || []);
+      } catch (serviceError) {
+        console.warn("Could not load service details:", serviceError);
+      }
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Unable to load appointments.",
@@ -394,6 +502,7 @@ export function AppointmentList() {
 
         const searchText = [
           item._id,
+          item.customerId,
           item.serviceName,
           item.customer?.name,
           item.customer?.email,
@@ -577,130 +686,255 @@ export function AppointmentList() {
           </div>
         }
       >
-        {shown.map((item) => (
-          <Card
-            key={item._id}
-            className="border-border/70 shadow-sm transition-colors hover:border-primary/30"
-          >
-            <CardContent className="space-y-4 p-4 sm:p-5">
-              {/* SERVICE AND STATUS */}
+        {shown.map((item) => {
+          const isCancelled = item.status === "Cancelled";
+          const isConfirmed = item.status === "Confirmed";
 
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h3 className="font-semibold">
-                    {item.serviceName || "Unknown service"}
-                  </h3>
+          const cancelledByLabel = item.cancelledBy
+            ? item.cancelledBy === item.customerId
+              ? "Customer"
+              : "Admin"
+            : "—";
+          const matchedService = services.find(
+            (service) => String(service._id) === String(item.serviceId),
+          );
 
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Appointment ID: #{String(item._id).slice(-10)}
+          const serviceInfo = { ...matchedService, ...item.service };
+
+          const serviceImage =
+            item.serviceImage ||
+            serviceInfo.image ||
+            serviceInfo.imageUrl ||
+            "";
+          const serviceCategory = item.serviceCategory || serviceInfo.category;
+          const servicePrice = formatPrice(
+            item.servicePrice ?? serviceInfo.price,
+          );
+          const serviceDuration = formatDuration(
+            item.serviceDuration ?? serviceInfo.duration,
+          );
+          return (
+            <Card
+              key={item._id}
+              className="border-border/70 shadow-sm transition-colors hover:border-primary/30"
+            >
+              <CardContent className="space-y-4 p-4 sm:p-5">
+                {/* SERVICE AND STATUS */}
+
+                {/* SERVICE AND STATUS */}
+
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                  <ServiceThumb
+                    key={serviceImage || item._id}
+                    src={serviceImage}
+                    alt={item.serviceName || "Service"}
+                  />
+
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="font-semibold">
+                        {item.serviceName || "Unknown service"}
+                      </h3>
+
+                      <StatusBadge status={item.status} />
+                    </div>
+
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                      {serviceCategory && (
+                        <span className="flex items-center gap-1.5">
+                          <Tag className="size-4 text-primary" />
+                          {serviceCategory}
+                        </span>
+                      )}
+
+                      {serviceDuration && (
+                        <span className="flex items-center gap-1.5">
+                          <Timer className="size-4 text-primary" />
+                          {serviceDuration}
+                        </span>
+                      )}
+
+                      {servicePrice && (
+                        <span className="flex items-center gap-1.5 font-semibold text-foreground">
+                          <CircleDollarSign className="size-4 text-primary" />
+                          {servicePrice}
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="text-xs text-muted-foreground">
+                      Appointment ID: {shortId(item._id)} · Service ID:{" "}
+                      {shortId(item.serviceId)}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="h-px bg-border/70" />
+
+                {/* CUSTOMER AND DETAILS */}
+
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <UserAvatar user={item.customer} />
+
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">
+                        {item.customer?.name || "Unknown customer"}
+                      </p>
+
+                      <p className="truncate text-xs text-muted-foreground">
+                        {item.customer?.email || "No email available"}
+                      </p>
+
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        Customer ID: {shortId(item.customerId)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid flex-1 grid-cols-2 gap-3 sm:max-w-md">
+                    <DetailItem
+                      label="Date"
+                      icon={<CalendarDays className="size-3.5" />}
+                      value={formatDay(item.appointmentDate)}
+                    />
+
+                    <DetailItem
+                      label="Time"
+                      icon={<Clock3 className="size-3.5" />}
+                      value={formatSlot(item.timeSlot)}
+                    />
+                  </div>
+
+                  <div className="sm:min-w-24">
+                    <p className="mb-1 text-xs text-muted-foreground">
+                      Payment
+                    </p>
+
+                    <StatusBadge status={item.paymentStatus || "Unpaid"} />
+                  </div>
+                </div>
+
+                {/* CUSTOMER MESSAGE */}
+
+                <div className="flex items-start gap-2 rounded-lg bg-muted/50 p-3 text-sm">
+                  <MessageSquare className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+
+                  <p
+                    className={
+                      item.additionalMessage ? "" : "text-muted-foreground"
+                    }
+                  >
+                    {item.additionalMessage ||
+                      "No additional message from customer."}
                   </p>
                 </div>
 
-                <StatusBadge status={item.status} />
-              </div>
+                {/* TIMELINE */}
 
-              <div className="h-px bg-border/70" />
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <DetailItem
+                    label="Requested on"
+                    icon={<History className="size-3.5" />}
+                    value={stamp(item.createdAt)}
+                  />
 
-              {/* CUSTOMER AND DETAILS */}
+                  <DetailItem
+                    label="Last updated"
+                    icon={<History className="size-3.5" />}
+                    value={stamp(item.updatedAt)}
+                  />
 
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                <div className="flex min-w-0 flex-1 items-center gap-3">
-                  <UserAvatar user={item.customer} />
+                  {isConfirmed && (
+                    <>
+                      <DetailItem
+                        label="Confirmed on"
+                        icon={<CheckCircle2 className="size-3.5" />}
+                        value={stamp(item.confirmedAt)}
+                      />
 
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">
-                      {item.customer?.name || "Unknown customer"}
-                    </p>
+                      <DetailItem
+                        label="Confirmed by"
+                        icon={<ShieldCheck className="size-3.5" />}
+                        value={item.confirmedBy ? "Admin" : "—"}
+                      />
+                    </>
+                  )}
 
-                    <p className="truncate text-xs text-muted-foreground">
-                      {item.customer?.email || "No email available"}
-                    </p>
-                  </div>
+                  {isCancelled && (
+                    <>
+                      <DetailItem
+                        label="Cancelled on"
+                        icon={<XCircle className="size-3.5" />}
+                        value={stamp(item.cancelledAt)}
+                      />
+
+                      <DetailItem
+                        label="Cancelled by"
+                        icon={<UserRound className="size-3.5" />}
+                        value={cancelledByLabel}
+                      />
+                    </>
+                  )}
                 </div>
 
-                <div className="grid flex-1 grid-cols-2 gap-3 sm:max-w-md">
-                  <div className="rounded-lg bg-muted/50 p-3">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <CalendarDays className="size-3.5" />
-                      Date
+                {/* ACTIONS: PENDING */}
+
+                {item.status === "Pending" && (
+                  <>
+                    <div className="h-px bg-border/70" />
+
+                    <div className="flex flex-col justify-end gap-2 sm:flex-row">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-2"
+                        onClick={() =>
+                          setTarget({ ...item, next: "Cancelled" })
+                        }
+                      >
+                        <XCircle className="size-4" />
+                        Cancel appointment
+                      </Button>
+
+                      <Button
+                        size="sm"
+                        className="gap-2"
+                        onClick={() =>
+                          setTarget({ ...item, next: "Confirmed" })
+                        }
+                      >
+                        <CheckCircle2 className="size-4" />
+                        Confirm appointment
+                      </Button>
                     </div>
+                  </>
+                )}
 
-                    <p className="mt-1 text-sm font-medium">
-                      {item.appointmentDate || "—"}
-                    </p>
-                  </div>
+                {/* ACTIONS: CANCELLED */}
 
-                  <div className="rounded-lg bg-muted/50 p-3">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Clock3 className="size-3.5" />
-                      Time
+                {isCancelled && (
+                  <>
+                    <div className="h-px bg-border/70" />
+
+                    <div className="flex justify-end">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-2 border-red-500/30 text-red-600 hover:bg-red-500/10 hover:text-red-600"
+                        onClick={() => setDeleteTarget(item)}
+                        disabled={busy}
+                      >
+                        <Trash2 className="size-4" />
+                        Delete History
+                      </Button>
                     </div>
-
-                    <p className="mt-1 text-sm font-medium">
-                      {item.timeSlot || "—"}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="sm:min-w-24">
-                  <p className="mb-1 text-xs text-muted-foreground">Payment</p>
-
-                  <StatusBadge status={item.paymentStatus || "Unpaid"} />
-                </div>
-              </div>
-
-              {/* ACTIONS: PENDING */}
-
-              {item.status === "Pending" && (
-                <>
-                  <div className="h-px bg-border/70" />
-
-                  <div className="flex flex-col justify-end gap-2 sm:flex-row">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-2"
-                      onClick={() => setTarget({ ...item, next: "Cancelled" })}
-                    >
-                      <XCircle className="size-4" />
-                      Cancel appointment
-                    </Button>
-
-                    <Button
-                      size="sm"
-                      className="gap-2"
-                      onClick={() => setTarget({ ...item, next: "Confirmed" })}
-                    >
-                      <CheckCircle2 className="size-4" />
-                      Confirm appointment
-                    </Button>
-                  </div>
-                </>
-              )}
-
-              {/* ACTIONS: CANCELLED */}
-
-              {item.status === "Cancelled" && (
-                <>
-                  <div className="h-px bg-border/70" />
-
-                  <div className="flex justify-end">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-2 border-red-500/30 text-red-600 hover:bg-red-500/10 hover:text-red-600"
-                      onClick={() => setDeleteTarget(item)}
-                      disabled={busy}
-                    >
-                      <Trash2 className="size-4" />
-                      Delete History
-                    </Button>
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        ))}
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
       </AdminList>
 
       {/* STATUS CHANGE CONFIRM */}

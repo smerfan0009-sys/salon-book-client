@@ -26,31 +26,39 @@ type DashboardRole = "admin" | "customer";
 
 const navigation = {
   admin: [
+    { href: "/dashboard/admin/profile",
+      label: "My Profile",
+      icon: User,
+     },
     {
       href: "/dashboard/admin",
       label: "Overview",
       icon: LayoutDashboard,
     },
     {
-      href: "/dashboard/admin/services",
-      label: "Manage Services",
-      icon: Scissors,
-    },
-    { href: "/dashboard/admin/services/new", label: "Add Service", icon: Plus },
-    {
       href: "/dashboard/admin/appointments",
       label: "Manage Appointments",
       icon: ListChecks,
     },
-    { href: "/dashboard/admin/users", label: "Manage Users", icon: Users },
     {
       href: "/dashboard/admin/transactions",
       label: "Transactions",
       icon: CreditCard,
     },
-    { href: "/dashboard/admin/profile", label: "My Profile", icon: User },
+    {
+      href: "/dashboard/admin/services",
+      label: "Manage Services",
+      icon: Scissors,
+    },
+    { href: "/dashboard/admin/users", label: "Manage Users", icon: Users },
+    { href: "/dashboard/admin/services/new", label: "Add Service", icon: Plus },
   ],
   customer: [
+    {
+      href: "/dashboard/customer/profile",
+      label: "My Profile",
+      icon: User,
+    },
     {
       href: "/dashboard/customer",
       label: "Overview",
@@ -60,11 +68,6 @@ const navigation = {
       href: "/dashboard/customer/appointments",
       label: "My Appointments",
       icon: CalendarDays,
-    },
-    {
-      href: "/dashboard/customer/profile",
-      label: "My Profile",
-      icon: User,
     },
     {
       href: "/services",

@@ -1,23 +1,35 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+/* eslint-disable react-hooks/set-state-in-effect */
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 
 import {
-  Scissors,
-  LayoutDashboard,
-  Calendar,
-  Clock,
-  RefreshCw,
+  CalendarDays,
   CalendarCheck,
+  Clock3,
+  XCircle,
+  CheckCircle2,
+  UserRound,
+  ShieldCheck,
+  CircleDollarSign,
+  Trash2,
+  MessageSquare,
+  History,
+  Tag,
+  Timer,
+  Scissors,
+  Search,
+  Loader2,
+  Inbox,
+  RefreshCw,
   AlertCircle,
   ArrowRight,
-  MessageSquare,
   Eye,
-  XCircle,
-  Tag,
-  Trash2,
+  LayoutDashboard,
 } from "lucide-react";
 
 import {
@@ -27,8 +39,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 import {
   AlertDialog,
@@ -52,6 +64,7 @@ interface ServiceInfo {
   imageUrl?: string;
   category?: string;
   price?: number | string;
+  duration?: number | string;
 }
 
 interface Service {
@@ -61,6 +74,7 @@ interface Service {
   imageUrl?: string;
   category?: string;
   price?: number | string;
+  duration?: number | string;
 }
 
 interface Appointment {
@@ -72,6 +86,7 @@ interface Appointment {
   serviceImage?: string;
   serviceCategory?: string;
   servicePrice?: number | string;
+  serviceDuration?: number | string;
   service?: ServiceInfo;
 
   appointmentDate: string;
@@ -80,7 +95,13 @@ interface Appointment {
 
   status: "Pending" | "Confirmed" | "Cancelled";
   paymentStatus: string;
+
   createdAt: string;
+  updatedAt?: string;
+  confirmedAt?: string;
+  confirmedBy?: string;
+  cancelledAt?: string;
+  cancelledBy?: string;
 }
 
 interface AppointmentResponse {
@@ -110,7 +131,6 @@ async function fetchCustomerDashboardData(): Promise<{
   appointments: Appointment[];
   services: Service[];
 }> {
-  // Fetch appointments
   const appointmentResponse = await apiFetch("/api/appointments", {
     method: "GET",
     cache: "no-store",
@@ -129,8 +149,7 @@ async function fetchCustomerDashboardData(): Promise<{
     ? appointmentPayload.data
     : [];
 
-  // Fetch services separately
-  // Appointment loading should still work if services fail
+  // Service details are optional: appointments still work if this fails
   let services: Service[] = [];
 
   try {
@@ -153,231 +172,274 @@ async function fetchCustomerDashboardData(): Promise<{
     console.error("Services loading error:", err);
   }
 
-  return {
-    appointments,
-    services,
-  };
+  return { appointments, services };
 }
 
 // --------------------------------------------------
 // HELPERS
 // --------------------------------------------------
 
-function formatDate(date: string) {
-  if (!date) return "N/A";
+const stamp = (date?: string) => {
+  if (!date) return "—";
 
-  return new Date(`${date}T00:00:00`).toLocaleDateString("en-GB", {
+  const parsedDate = new Date(date);
+
+  if (Number.isNaN(parsedDate.getTime())) return "—";
+
+  return parsedDate.toLocaleString();
+};
+
+const formatDay = (date?: string) => {
+  if (!date) return "—";
+
+  const parsed = new Date(`${date}T00:00:00`);
+
+  if (Number.isNaN(parsed.getTime())) return date;
+
+  return parsed.toLocaleDateString("en-GB", {
     weekday: "short",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-}
-
-function formatRequestDate(date: string) {
-  if (!date) return "N/A";
-
-  return new Date(date).toLocaleDateString("en-GB", {
     day: "numeric",
     month: "short",
     year: "numeric",
   });
-}
+};
 
-function formatTime(time: string) {
-  if (!time) return "N/A";
+const formatSlot = (time?: string) => {
+  if (!time) return "—";
 
-  const [hourText, minute] = time.split(":");
-  const hour = Number(hourText);
+  const [h, m] = time.split(":");
+  const hour = Number(h);
 
   if (Number.isNaN(hour)) return time;
 
-  const suffix = hour >= 12 ? "PM" : "AM";
-  const displayHour = hour % 12 || 12;
+  return `${hour % 12 || 12}:${m} ${hour >= 12 ? "PM" : "AM"}`;
+};
 
-  return `${displayHour}:${minute} ${suffix}`;
-}
+const shortId = (id?: string) => (id ? `#${String(id).slice(-10)}` : "—");
 
-function formatPrice(price?: number | string) {
-  if (price === undefined || price === null || price === "") {
+const formatPrice = (price?: number | string) => {
+  if (price === undefined || price === null || price === "") return null;
+
+  const numeric = Number(price);
+
+  return Number.isNaN(numeric)
+    ? String(price)
+    : `৳${numeric.toLocaleString("en-BD")}`;
+};
+
+const formatDuration = (duration?: number | string) => {
+  if (duration === undefined || duration === null || duration === "")
     return null;
-  }
 
-  const numericPrice = Number(price);
-
-  if (Number.isNaN(numericPrice)) {
-    return String(price);
-  }
-
-  return `৳${numericPrice.toLocaleString("en-BD")}`;
-}
-
-// Find corresponding service using serviceId
-function findAppointmentService(appointment: Appointment, services: Service[]) {
-  return services.find(
-    (service) => String(service._id) === String(appointment.serviceId),
-  );
-}
-
-function getServiceImage(appointment: Appointment, service?: Service) {
-  return (
-    appointment.serviceImage ||
-    appointment.service?.image ||
-    appointment.service?.imageUrl ||
-    service?.image ||
-    service?.imageUrl ||
-    ""
-  );
-}
-
-function getServiceCategory(appointment: Appointment, service?: Service) {
-  return (
-    appointment.serviceCategory ||
-    appointment.service?.category ||
-    service?.category ||
-    ""
-  );
-}
-
-function getServicePrice(appointment: Appointment, service?: Service) {
-  return formatPrice(
-    appointment.servicePrice ?? appointment.service?.price ?? service?.price,
-  );
-}
-
-function getStatusStyle(status: string) {
-  switch (status) {
-    case "Confirmed":
-      return "bg-green-500/10 text-green-600 dark:text-green-400";
-
-    case "Cancelled":
-      return "bg-red-500/10 text-red-600 dark:text-red-400";
-
-    default:
-      return "bg-amber-500/10 text-amber-700 dark:text-amber-400";
-  }
-}
-
-function getPaymentStatusStyle(status: string) {
-  switch (status?.toLowerCase()) {
-    case "paid":
-      return "text-green-600 dark:text-green-400";
-
-    case "failed":
-      return "text-red-600 dark:text-red-400";
-
-    default:
-      return "text-amber-600 dark:text-amber-400";
-  }
-}
+  return typeof duration === "number" || /^\d+$/.test(String(duration))
+    ? `${duration} min`
+    : String(duration);
+};
 
 // --------------------------------------------------
-// SERVICE IMAGE COMPONENT
+// REUSABLE COMPONENTS
 // --------------------------------------------------
 
-function ServiceImage({ src, alt }: { src: string; alt: string }) {
-  const [imageFailed, setImageFailed] = useState(false);
+function StatusBadge({ status }: { status?: string }) {
+  const value = String(status || "Unknown").toLowerCase();
+
+  const styles: Record<string, string> = {
+    pending: "bg-amber-500/10 text-amber-600 border-amber-500/20",
+    confirmed: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+    cancelled: "bg-red-500/10 text-red-600 border-red-500/20",
+    paid: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+    unpaid: "bg-amber-500/10 text-amber-600 border-amber-500/20",
+    failed: "bg-red-500/10 text-red-600 border-red-500/20",
+  };
 
   return (
-    <div className="h-28 w-full shrink-0 overflow-hidden rounded-lg bg-muted sm:w-36">
-      {src && !imageFailed ? (
+    <span
+      className={`inline-flex w-fit items-center rounded-full border px-2.5 py-1 text-xs font-medium capitalize ${
+        styles[value] || "bg-muted text-muted-foreground border-border"
+      }`}
+    >
+      {status || "Unknown"}
+    </span>
+  );
+}
+
+function MetricCard({
+  title,
+  value,
+  description,
+  icon,
+}: {
+  title: string;
+  value: number | string;
+  description: string;
+  icon: ReactNode;
+}) {
+  return (
+    <Card className="border-border/70 shadow-sm">
+      <CardContent className="flex items-center justify-between gap-3 p-4 sm:p-5">
+        <div className="min-w-0">
+          <p className="text-sm text-muted-foreground">{title}</p>
+
+          <p className="mt-2 text-2xl font-bold tracking-tight">{value}</p>
+
+          <p className="mt-1 text-xs text-muted-foreground">{description}</p>
+        </div>
+
+        <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          {icon}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function MetricGrid({ children }: { children: ReactNode }) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{children}</div>
+  );
+}
+
+function DetailItem({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: ReactNode;
+  icon?: ReactNode;
+}) {
+  return (
+    <div className="rounded-lg bg-muted/50 p-3">
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        {icon}
+        {label}
+      </div>
+
+      <p className="mt-1 break-words text-sm font-medium">{value}</p>
+    </div>
+  );
+}
+
+function ServiceThumb({ src, alt }: { src?: string; alt: string }) {
+  const [failed, setFailed] = useState(false);
+
+  return (
+    <div className="h-20 w-24 shrink-0 overflow-hidden rounded-lg bg-muted sm:h-24 sm:w-32">
+      {src && !failed ? (
+        // eslint-disable-next-line @next/next/no-img-element
         <img
           src={src}
           alt={alt}
           loading="lazy"
           className="h-full w-full object-cover"
-          onError={() => setImageFailed(true)}
+          onError={() => setFailed(true)}
         />
       ) : (
         <div className="flex h-full items-center justify-center">
-          <Scissors className="size-9 text-muted-foreground" />
+          <Scissors className="size-7 text-muted-foreground" />
         </div>
       )}
     </div>
   );
 }
 
+function Confirm({
+  open,
+  onClose,
+  busy,
+  action,
+  title = "Confirm action",
+  text,
+  confirmLabel = "Confirm",
+  cancelLabel = "Cancel",
+  destructive = false,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  busy: boolean;
+  action: () => void;
+  title?: string;
+  text: ReactNode;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  destructive?: boolean;
+  children?: ReactNode;
+}) {
+  return (
+    <AlertDialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next && !busy) onClose();
+      }}
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+
+          <AlertDialogDescription>{text}</AlertDialogDescription>
+        </AlertDialogHeader>
+
+        {children}
+
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={busy}>{cancelLabel}</AlertDialogCancel>
+
+          <AlertDialogAction
+            variant={destructive ? "destructive" : "default"}
+            disabled={busy}
+            onClick={(event) => {
+              event.preventDefault();
+              void action();
+            }}
+          >
+            {busy ? (
+              <>
+                <Loader2 className="mr-2 size-4 animate-spin" />
+                Processing...
+              </>
+            ) : (
+              confirmLabel
+            )}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 // --------------------------------------------------
-// COMPONENT
+// PAGE
 // --------------------------------------------------
 
 export default function CustomerDashboardPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [services, setServices] = useState<Service[]>([]);
 
+  const [q, setQ] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // --------------------------------------------------
-  // ACTION STATES
-  // --------------------------------------------------
-
+  // Action states
   const [cancellingId, setCancellingId] = useState<string | null>(null);
-
   const [deletingId, setDeletingId] = useState<string | null>(null);
-
   const [deletingAllHistory, setDeletingAllHistory] = useState(false);
 
-  // --------------------------------------------------
-  // CONFIRMATION DIALOG STATES
-  // --------------------------------------------------
-
+  // Confirmation dialog states
   const [appointmentToCancel, setAppointmentToCancel] =
     useState<Appointment | null>(null);
-
   const [appointmentToDelete, setAppointmentToDelete] =
     useState<Appointment | null>(null);
-
   const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
 
   // --------------------------------------------------
-  // INITIAL DATA FETCH
+  // LOAD DATA
   // --------------------------------------------------
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadDashboard() {
-      try {
-        const result = await fetchCustomerDashboardData();
-
-        if (!cancelled) {
-          setAppointments(result.appointments);
-          setServices(result.services);
-          setError(null);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          console.error("Customer dashboard error:", err);
-
-          setError(
-            err instanceof Error
-              ? err.message
-              : "Something went wrong while loading dashboard.",
-          );
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    }
-
-    void loadDashboard();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // --------------------------------------------------
-  // REFRESH APPOINTMENTS AND SERVICES
-  // --------------------------------------------------
-
-  const fetchAppointments = useCallback(async (showLoading = true) => {
-    if (showLoading) {
-      setLoading(true);
-    }
+  const load = useCallback(async (showLoader = true) => {
+    if (showLoader) setLoading(true);
 
     setError(null);
 
@@ -387,7 +449,7 @@ export default function CustomerDashboardPage() {
       setAppointments(result.appointments);
       setServices(result.services);
     } catch (err) {
-      console.error("Customer appointments error:", err);
+      console.error("Customer dashboard error:", err);
 
       setError(
         err instanceof Error
@@ -395,31 +457,105 @@ export default function CustomerDashboardPage() {
           : "Something went wrong while loading appointments.",
       );
     } finally {
-      if (showLoading) {
-        setLoading(false);
-      }
+      if (showLoader) setLoading(false);
     }
   }, []);
 
+  useEffect(() => {
+    void load();
+  }, [load]);
+
   // --------------------------------------------------
-  // DELETE ONE CANCELLED APPOINTMENT HISTORY
+  // STATISTICS + FILTERING
   // --------------------------------------------------
 
-  const handleDeleteAppointmentHistory = async () => {
-    if (!appointmentToDelete || deletingId || deletingAllHistory) {
-      return;
+  const stats = useMemo(
+    () => ({
+      total: appointments.length,
+      pending: appointments.filter((x) => x.status === "Pending").length,
+      confirmed: appointments.filter((x) => x.status === "Confirmed").length,
+      cancelled: appointments.filter((x) => x.status === "Cancelled").length,
+    }),
+    [appointments],
+  );
+
+  const shown = useMemo(
+    () =>
+      appointments.filter((item) => {
+        const matchesStatus =
+          statusFilter === "all" ||
+          String(item.status || "").toLowerCase() === statusFilter;
+
+        const searchText = [
+          item._id,
+          item.serviceName,
+          item.serviceCategory,
+          item.appointmentDate,
+          item.status,
+        ]
+          .join(" ")
+          .toLowerCase();
+
+        return matchesStatus && searchText.includes(q.toLowerCase());
+      }),
+    [appointments, q, statusFilter],
+  );
+
+  const isAnyActionRunning =
+    !!cancellingId || !!deletingId || deletingAllHistory;
+
+  // --------------------------------------------------
+  // ACTIONS
+  // --------------------------------------------------
+
+  const confirmCancelAppointment = async () => {
+    if (!appointmentToCancel || cancellingId) return;
+
+    const appointmentId = appointmentToCancel._id;
+
+    setCancellingId(appointmentId);
+
+    try {
+      const response = await apiFetch(
+        `/api/appointments/${appointmentId}/cancel`,
+        { method: "PATCH" },
+      );
+
+      const payload = (await response.json()) as ActionResponse;
+
+      if (!response.ok || payload.success === false) {
+        throw new Error(payload.message || "Failed to cancel appointment.");
+      }
+
+      setAppointmentToCancel(null);
+
+      toast.success("Appointment cancelled successfully.");
+
+      await load(false);
+    } catch (err) {
+      console.error("Cancel appointment error:", err);
+
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "Something went wrong while cancelling.",
+      );
+    } finally {
+      setCancellingId(null);
     }
+  };
+
+  const handleDeleteAppointmentHistory = async () => {
+    if (!appointmentToDelete || deletingId || deletingAllHistory) return;
 
     const appointmentId = appointmentToDelete._id;
 
-    try {
-      setDeletingId(appointmentId);
+    setDeletingId(appointmentId);
 
+    try {
       const response = await apiFetch(
         `/api/appointments/${appointmentId}/history`,
-        {
-          method: "DELETE",
-        },
+        { method: "DELETE" },
       );
 
       const payload = (await response.json()) as ActionResponse;
@@ -430,12 +566,10 @@ export default function CustomerDashboardPage() {
         );
       }
 
-      // Update appointment list
       setAppointments((current) =>
         current.filter((item) => item._id !== appointmentId),
       );
 
-      // Close confirmation dialog
       setAppointmentToDelete(null);
 
       toast.success("Appointment history deleted successfully.");
@@ -452,18 +586,12 @@ export default function CustomerDashboardPage() {
     }
   };
 
-  // --------------------------------------------------
-  // DELETE ALL CANCELLED APPOINTMENT HISTORY
-  // --------------------------------------------------
-
   const handleDeleteAllAppointmentHistory = async () => {
-    if (cancelledAppointments === 0 || deletingId || deletingAllHistory) {
-      return;
-    }
+    if (stats.cancelled === 0 || deletingId || deletingAllHistory) return;
+
+    setDeletingAllHistory(true);
 
     try {
-      setDeletingAllHistory(true);
-
       const response = await apiFetch("/api/appointments/history/cancelled", {
         method: "DELETE",
       });
@@ -476,12 +604,10 @@ export default function CustomerDashboardPage() {
         );
       }
 
-      // Remove cancelled appointments from UI
       setAppointments((current) =>
         current.filter((appointment) => appointment.status !== "Cancelled"),
       );
 
-      // Close confirmation dialog
       setShowDeleteAllConfirm(false);
 
       toast.success(
@@ -502,90 +628,12 @@ export default function CustomerDashboardPage() {
   };
 
   // --------------------------------------------------
-  // OPEN CANCEL CONFIRMATION DIALOG
-  // --------------------------------------------------
-
-  const handleCancelAppointment = (appointment: Appointment) => {
-    setAppointmentToCancel(appointment);
-  };
-
-  // --------------------------------------------------
-  // CONFIRM APPOINTMENT CANCELLATION
-  // --------------------------------------------------
-
-  const confirmCancelAppointment = async () => {
-    if (!appointmentToCancel || cancellingId) return;
-
-    const appointmentId = appointmentToCancel._id;
-
-    setCancellingId(appointmentId);
-
-    try {
-      const response = await apiFetch(
-        `/api/appointments/${appointmentId}/cancel`,
-        {
-          method: "PATCH",
-        },
-      );
-
-      const payload = (await response.json()) as ActionResponse;
-
-      if (!response.ok || payload.success === false) {
-        throw new Error(payload.message || "Failed to cancel appointment.");
-      }
-
-      // Close confirmation dialog
-      setAppointmentToCancel(null);
-
-      toast.success("Appointment cancelled successfully.");
-
-      // Refresh appointment list and statistics
-      await fetchAppointments(false);
-    } catch (err) {
-      console.error("Cancel appointment error:", err);
-
-      toast.error(
-        err instanceof Error
-          ? err.message
-          : "Something went wrong while cancelling.",
-      );
-    } finally {
-      setCancellingId(null);
-    }
-  };
-
-  // --------------------------------------------------
-  // STATISTICS
-  // --------------------------------------------------
-
-  const totalAppointments = appointments.length;
-
-  const pendingAppointments = appointments.filter(
-    (appointment) => appointment.status === "Pending",
-  ).length;
-
-  const confirmedAppointments = appointments.filter(
-    (appointment) => appointment.status === "Confirmed",
-  ).length;
-
-  const cancelledAppointments = appointments.filter(
-    (appointment) => appointment.status === "Cancelled",
-  ).length;
-
-  // --------------------------------------------------
-  // ACTION STATUS
-  // --------------------------------------------------
-
-  const isAnyActionRunning =
-    !!cancellingId || !!deletingId || deletingAllHistory;
-
-  // --------------------------------------------------
   // RENDER
   // --------------------------------------------------
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* Dashboard Header */}
+    <div className="space-y-6">
+      {/* DASHBOARD HEADER */}
 
       <div>
         <h1 className="flex items-center gap-2 text-3xl font-bold tracking-tight">
@@ -598,395 +646,427 @@ export default function CustomerDashboardPage() {
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-3">
-        <Link
-          href="/dashboard/customer/appointments"
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
-        >
-          My Appointments
-        </Link>
+      {/* METRICS */}
 
-        <Link
-          href="/dashboard/customer/profile"
-          className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted"
-        >
-          My Profile
-        </Link>
-      </div>
+      <MetricGrid>
+        <MetricCard
+          title="Total Appointments"
+          value={stats.total}
+          description="All your booking requests"
+          icon={<CalendarDays className="size-5" />}
+        />
 
-      {/* Appointment Statistics */}
+        <MetricCard
+          title="Pending"
+          value={stats.pending}
+          description="Awaiting confirmation"
+          icon={<Clock3 className="size-5" />}
+        />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Card>
-          <CardContent className="flex items-center justify-between p-5">
-            <div>
-              <p className="text-sm text-muted-foreground">
-                Total Appointments
-              </p>
+        <MetricCard
+          title="Confirmed"
+          value={stats.confirmed}
+          description="Successfully confirmed"
+          icon={<CalendarCheck className="size-5" />}
+        />
 
-              <p className="mt-2 text-2xl font-bold">
-                {loading ? "..." : totalAppointments}
-              </p>
+        <MetricCard
+          title="Cancelled"
+          value={stats.cancelled}
+          description="Cancelled bookings"
+          icon={<XCircle className="size-5" />}
+        />
+      </MetricGrid>
+
+      {/* LIST SECTION */}
+
+      <div className="space-y-6">
+        {/* PAGE HEADER */}
+
+        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+          <div className="flex items-start gap-3">
+            <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <CalendarDays className="size-6" />
             </div>
 
-            <Calendar className="size-8 text-primary" />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="flex items-center justify-between p-5">
             <div>
-              <p className="text-sm text-muted-foreground">Pending</p>
+              <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+                My Appointments
+              </h2>
 
-              <p className="mt-2 text-2xl font-bold">
-                {loading ? "..." : pendingAppointments}
+              <p className="mt-1 text-sm text-muted-foreground">
+                View and manage your salon appointment requests.
               </p>
             </div>
-
-            <Clock className="size-8 text-amber-500" />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="flex items-center justify-between p-5">
-            <div>
-              <p className="text-sm text-muted-foreground">Confirmed</p>
-
-              <p className="mt-2 text-2xl font-bold">
-                {loading ? "..." : confirmedAppointments}
-              </p>
-            </div>
-
-            <CalendarCheck className="size-8 text-green-500" />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="flex items-center justify-between p-5">
-            <div>
-              <p className="text-sm text-muted-foreground">Cancelled</p>
-
-              <p className="mt-2 text-2xl font-bold">
-                {loading ? "..." : cancelledAppointments}
-              </p>
-            </div>
-
-            <XCircle className="size-8 text-red-500" />
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* My Appointments */}
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-3">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="size-5 text-primary" />
-              My Appointments
-            </CardTitle>
-
-            <CardDescription>
-              View and manage your salon appointment requests.
-            </CardDescription>
           </div>
 
-          <div className="flex shrink-0 items-center gap-2">
-            {/* DELETE ALL HISTORY BUTTON */}
+          <div className="flex w-fit items-center gap-2 rounded-full border bg-muted/40 px-3 py-1.5 text-sm">
+            <span className="font-semibold tabular-nums">{shown.length}</span>
+            <span className="text-muted-foreground">
+              {shown.length === 1 ? "result" : "results"}
+            </span>
+          </div>
+        </div>
 
-            {cancelledAppointments > 0 && (
+        {/* SEARCH AND FILTERS */}
+
+        <Card className="border-border/70 shadow-sm">
+          <CardContent className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:p-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+
+              <Input
+                value={q}
+                onChange={(event) => setQ(event.target.value)}
+                placeholder="Search my appointments..."
+                className="h-10 border-border/70 pl-9"
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.target.value)}
+                className="h-10 rounded-lg border border-border/70 bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+              >
+                <option value="all">All statuses</option>
+                <option value="pending">Pending</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+
+              {stats.cancelled > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-10 gap-2 border-red-500/30 text-red-600 hover:bg-red-500/10 hover:text-red-600"
+                  onClick={() => setShowDeleteAllConfirm(true)}
+                  disabled={isAnyActionRunning || loading}
+                >
+                  {deletingAllHistory ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="size-4" />
+                  )}
+                  Delete All History
+                </Button>
+              )}
+
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
-                className="border-red-500/30 text-red-600 hover:bg-red-500/10 hover:text-red-600 dark:text-red-400"
-                onClick={() => setShowDeleteAllConfirm(true)}
-                disabled={isAnyActionRunning || loading}
+                size="icon"
+                className="size-10"
+                onClick={() => void load()}
+                disabled={loading || isAnyActionRunning}
+                aria-label="Refresh appointments"
               >
-                {deletingAllHistory ? (
-                  <RefreshCw className="mr-2 size-4 animate-spin" />
-                ) : (
-                  <Trash2 className="mr-2 size-4" />
-                )}
-                Delete All History
-              </Button>
-            )}
-
-            {/* REFRESH BUTTON */}
-
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              onClick={() => void fetchAppointments()}
-              disabled={loading || isAnyActionRunning}
-              aria-label="Refresh appointments"
-            >
-              <RefreshCw
-                className={`size-4 ${loading ? "animate-spin" : ""}`}
-              />
-            </Button>
-          </div>
-        </CardHeader>
-
-        <CardContent>
-          {/* Loading */}
-
-          {loading && (
-            <div className="space-y-4">
-              {[1, 2, 3].map((item) => (
-                <div
-                  key={item}
-                  className="h-40 animate-pulse rounded-xl bg-muted"
+                <RefreshCw
+                  className={`size-4 ${loading ? "animate-spin" : ""}`}
                 />
-              ))}
+              </Button>
             </div>
-          )}
+          </CardContent>
+        </Card>
 
-          {/* Error */}
+        {/* CONTENT */}
 
-          {!loading && error && (
-            <div className="flex flex-col items-center gap-3 py-10 text-center">
+        {loading ? (
+          <div className="flex min-h-60 items-center justify-center">
+            <div className="flex flex-col items-center gap-3 text-muted-foreground">
+              <Loader2 className="size-7 animate-spin text-primary" />
+              <p className="text-sm">Loading data...</p>
+            </div>
+          </div>
+        ) : error ? (
+          <Card className="border-dashed shadow-none">
+            <CardContent className="flex min-h-64 flex-col items-center justify-center gap-3 text-center">
               <AlertCircle className="size-10 text-destructive" />
 
               <p className="text-sm text-destructive">{error}</p>
 
               <Button
                 type="button"
-                onClick={() => void fetchAppointments()}
+                onClick={() => void load()}
                 disabled={isAnyActionRunning}
               >
                 Try Again
               </Button>
-            </div>
-          )}
-
-          {/* Empty State */}
-
-          {!loading && !error && appointments.length === 0 && (
-            <div className="flex flex-col items-center gap-3 py-12 text-center">
-              <div className="rounded-full bg-primary/10 p-4">
-                <Scissors className="size-8 text-primary" />
+            </CardContent>
+          </Card>
+        ) : appointments.length === 0 ? (
+          <Card className="border-dashed shadow-none">
+            <CardContent className="flex min-h-64 flex-col items-center justify-center text-center">
+              <div className="flex size-14 items-center justify-center rounded-full bg-primary/10">
+                <Scissors className="size-6 text-primary" />
               </div>
 
-              <h3 className="text-lg font-semibold">No appointments yet</h3>
+              <h3 className="mt-4 font-semibold">No appointments yet</h3>
 
-              <p className="max-w-sm text-sm text-muted-foreground">
+              <p className="mt-1 max-w-sm text-sm text-muted-foreground">
                 You haven&apos;t booked any salon services yet. Explore our
                 services and book your first appointment.
               </p>
 
-              <Button className="mt-2">
+              <Button className="mt-4">
                 <Link href="/services">
                   Explore Services
                   <ArrowRight className="ml-2 size-4" />
                 </Link>
               </Button>
-            </div>
-          )}
+            </CardContent>
+          </Card>
+        ) : shown.length === 0 ? (
+          <Card className="border-dashed shadow-none">
+            <CardContent className="flex min-h-64 flex-col items-center justify-center text-center">
+              <div className="flex size-14 items-center justify-center rounded-full bg-muted">
+                <Inbox className="size-6 text-muted-foreground" />
+              </div>
 
-          {/* Appointment List */}
+              <h3 className="mt-4 font-semibold">No records found</h3>
 
-          {!loading && !error && appointments.length > 0 && (
-            <div className="space-y-4">
-              {appointments.map((appointment) => {
-                const matchedService = findAppointmentService(
-                  appointment,
-                  services,
-                );
+              <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+                No appointments match your search or selected filter.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-3">
+            {shown.map((item) => {
+              const isPending = item.status === "Pending";
+              const isCancelled = item.status === "Cancelled";
+              const isConfirmed = item.status === "Confirmed";
 
-                const serviceImage = getServiceImage(
-                  appointment,
-                  matchedService,
-                );
+              const isCancelling = cancellingId === item._id;
+              const isDeleting = deletingId === item._id;
 
-                const serviceCategory = getServiceCategory(
-                  appointment,
-                  matchedService,
-                );
+              const cancelledByLabel = item.cancelledBy
+                ? item.cancelledBy === item.customerId
+                  ? "You"
+                  : "Admin"
+                : "—";
 
-                const servicePrice = getServicePrice(
-                  appointment,
-                  matchedService,
-                );
+              const matchedService = services.find(
+                (service) => String(service._id) === String(item.serviceId),
+              );
 
-                const isPending = appointment.status === "Pending";
-                const isCancelling = cancellingId === appointment._id;
-                const isCancelled = appointment.status === "Cancelled";
-                const isDeleting = deletingId === appointment._id;
+              const serviceInfo = { ...matchedService, ...item.service };
 
-                return (
-                  <div
-                    key={appointment._id}
-                    className="rounded-xl border p-4 transition-colors hover:bg-muted/30 sm:p-5"
-                  >
-                    <div className="flex flex-col gap-5">
-                      {/* DELETE HISTORY BUTTON */}
+              const serviceImage =
+                item.serviceImage ||
+                serviceInfo.image ||
+                serviceInfo.imageUrl ||
+                "";
+              const serviceCategory =
+                item.serviceCategory || serviceInfo.category;
+              const servicePrice = formatPrice(
+                item.servicePrice ?? serviceInfo.price,
+              );
+              const serviceDuration = formatDuration(
+                item.serviceDuration ?? serviceInfo.duration,
+              );
 
-                      {isCancelled && (
-                        <div className="flex justify-end">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="border-red-500/30 text-red-600 hover:bg-red-500/10 hover:text-red-600 dark:text-red-400"
-                            onClick={() => setAppointmentToDelete(appointment)}
-                            disabled={isAnyActionRunning || loading}
-                          >
-                            {isDeleting ? (
-                              <RefreshCw className="mr-2 size-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="mr-2 size-4" />
-                            )}
-                            Delete History
-                          </Button>
+              return (
+                <Card
+                  key={item._id}
+                  className="border-border/70 shadow-sm transition-colors hover:border-primary/30"
+                >
+                  <CardContent className="space-y-4 p-4 sm:p-5">
+                    {/* SERVICE AND STATUS */}
+
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                      <ServiceThumb
+                        key={serviceImage || item._id}
+                        src={serviceImage}
+                        alt={item.serviceName || "Service"}
+                      />
+
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="font-semibold">
+                            {item.serviceName || "Unknown service"}
+                          </h3>
+
+                          <StatusBadge status={item.status} />
                         </div>
-                      )}
 
-                      {/* Service Information */}
-
-                      <div className="flex flex-col gap-4 sm:flex-row">
-                        {/* Service Image */}
-
-                        <ServiceImage
-                          key={serviceImage || appointment._id}
-                          src={serviceImage}
-                          alt={appointment.serviceName}
-                        />
-
-                        {/* Service Details */}
-
-                        <div className="min-w-0 flex-1 space-y-3">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <h3 className="text-lg font-semibold">
-                              {appointment.serviceName}
-                            </h3>
-
-                            <span
-                              className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusStyle(appointment.status)}`}
-                            >
-                              {appointment.status}
-                            </span>
-                          </div>
-
-                          {/* Category */}
-
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
                           {serviceCategory && (
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <span className="flex items-center gap-1.5">
                               <Tag className="size-4 text-primary" />
                               {serviceCategory}
-                            </div>
+                            </span>
                           )}
 
-                          {/* Appointment Date & Time */}
-
-                          <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
-                            <span className="flex items-center gap-2">
-                              <Calendar className="size-4 text-primary" />
-                              {formatDate(appointment.appointmentDate)}
+                          {serviceDuration && (
+                            <span className="flex items-center gap-1.5">
+                              <Timer className="size-4 text-primary" />
+                              {serviceDuration}
                             </span>
-
-                            <span className="flex items-center gap-2">
-                              <Clock className="size-4 text-primary" />
-                              {formatTime(appointment.timeSlot)}
-                            </span>
-                          </div>
-
-                          {/* Service Price */}
+                          )}
 
                           {servicePrice && (
-                            <p className="text-base font-semibold">
+                            <span className="flex items-center gap-1.5 font-semibold text-foreground">
+                              <CircleDollarSign className="size-4 text-primary" />
                               {servicePrice}
-                            </p>
+                            </span>
                           )}
                         </div>
 
-                        {/* Appointment ID */}
+                        <p className="text-xs text-muted-foreground">
+                          Appointment ID: {shortId(item._id)} · Service ID:{" "}
+                          {shortId(item.serviceId)}
+                        </p>
+                      </div>
+                    </div>
 
-                        <div className="shrink-0">
-                          <span className="text-xs text-muted-foreground">
-                            ID: {appointment._id.slice(-8).toUpperCase()}
-                          </span>
-                        </div>
+                    <div className="h-px bg-border/70" />
+
+                    {/* DATE, TIME AND PAYMENT */}
+
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                      <div className="grid flex-1 grid-cols-2 gap-3 sm:max-w-md">
+                        <DetailItem
+                          label="Date"
+                          icon={<CalendarDays className="size-3.5" />}
+                          value={formatDay(item.appointmentDate)}
+                        />
+
+                        <DetailItem
+                          label="Time"
+                          icon={<Clock3 className="size-3.5" />}
+                          value={formatSlot(item.timeSlot)}
+                        />
                       </div>
 
-                      {/* Additional Message */}
+                      <div className="sm:min-w-24">
+                        <p className="mb-1 text-xs text-muted-foreground">
+                          Payment
+                        </p>
 
-                      {appointment.additionalMessage && (
-                        <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                          <MessageSquare className="mt-0.5 size-4 shrink-0" />
+                        <StatusBadge status={item.paymentStatus || "Unpaid"} />
+                      </div>
+                    </div>
 
-                          <p>{appointment.additionalMessage}</p>
-                        </div>
+                    {/* CUSTOMER MESSAGE */}
+
+                    <div className="flex items-start gap-2 rounded-lg bg-muted/50 p-3 text-sm">
+                      <MessageSquare className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+
+                      <p
+                        className={
+                          item.additionalMessage ? "" : "text-muted-foreground"
+                        }
+                      >
+                        {item.additionalMessage || "No additional message."}
+                      </p>
+                    </div>
+
+                    {/* TIMELINE */}
+
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                      <DetailItem
+                        label="Requested on"
+                        icon={<History className="size-3.5" />}
+                        value={stamp(item.createdAt)}
+                      />
+
+                      <DetailItem
+                        label="Last updated"
+                        icon={<History className="size-3.5" />}
+                        value={stamp(item.updatedAt || item.createdAt)}
+                      />
+
+                      {isConfirmed && (
+                        <>
+                          <DetailItem
+                            label="Confirmed on"
+                            icon={<CheckCircle2 className="size-3.5" />}
+                            value={stamp(item.confirmedAt)}
+                          />
+
+                          <DetailItem
+                            label="Confirmed by"
+                            icon={<ShieldCheck className="size-3.5" />}
+                            value={item.confirmedBy ? "Admin" : "—"}
+                          />
+                        </>
                       )}
 
-                      {/* Appointment Meta Information */}
+                      {isCancelled && (
+                        <>
+                          <DetailItem
+                            label="Cancelled on"
+                            icon={<XCircle className="size-3.5" />}
+                            value={stamp(item.cancelledAt)}
+                          />
 
-                      <div className="flex flex-col gap-2 border-t pt-4 text-sm sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex flex-wrap gap-x-5 gap-y-2 text-muted-foreground">
-                          <p>
-                            Requested:{" "}
-                            <span className="font-medium text-foreground">
-                              {formatRequestDate(appointment.createdAt)}
-                            </span>
-                          </p>
+                          <DetailItem
+                            label="Cancelled by"
+                            icon={<UserRound className="size-3.5" />}
+                            value={cancelledByLabel}
+                          />
+                        </>
+                      )}
+                    </div>
 
-                          <p>
-                            Payment:{" "}
-                            <span
-                              className={`font-medium ${getPaymentStatusStyle(appointment.paymentStatus)}`}
-                            >
-                              {appointment.paymentStatus || "Unpaid"}
-                            </span>
-                          </p>
-                        </div>
-                      </div>
+                    {/* ACTIONS */}
 
-                      {/* Appointment Actions */}
+                    <div className="h-px bg-border/70" />
 
-                      <div className="flex flex-wrap items-center gap-2 border-t pt-4">
-                        {/* View Service Details */}
-
-                        <Link
-                          href={`/services/${appointment.serviceId}`}
-                          className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors hover:bg-muted"
-                        >
+                    <div className="flex flex-col justify-end gap-2 sm:flex-row">
+                      <Button size="sm" variant="outline" className="gap-2">
+                        <Link href={`/services/${item.serviceId}`}>
                           <Eye className="size-4" />
                           View Details
                         </Link>
+                      </Button>
 
-                        {/* Cancel: Pending Only */}
+                      {isPending && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-2 border-red-500/30 text-red-600 hover:bg-red-500/10 hover:text-red-600"
+                          onClick={() => setAppointmentToCancel(item)}
+                          disabled={isAnyActionRunning || loading}
+                        >
+                          {isCancelling ? (
+                            <Loader2 className="size-4 animate-spin" />
+                          ) : (
+                            <XCircle className="size-4" />
+                          )}
+                          Cancel Appointment
+                        </Button>
+                      )}
 
-                        {isPending && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="border-red-500/30 text-red-600 hover:bg-red-500/10 hover:text-red-600 dark:text-red-400"
-                            onClick={() => handleCancelAppointment(appointment)}
-                            disabled={isAnyActionRunning || loading}
-                          >
-                            {isCancelling ? (
-                              <RefreshCw className="mr-2 size-4 animate-spin" />
-                            ) : (
-                              <XCircle className="mr-2 size-4" />
-                            )}
-                            Cancel Appointment
-                          </Button>
-                        )}
-                      </div>
+                      {isCancelled && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-2 border-red-500/30 text-red-600 hover:bg-red-500/10 hover:text-red-600"
+                          onClick={() => setAppointmentToDelete(item)}
+                          disabled={isAnyActionRunning || loading}
+                        >
+                          {isDeleting ? (
+                            <Loader2 className="size-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="size-4" />
+                          )}
+                          Delete History
+                        </Button>
+                      )}
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
-      {/* Quick Actions */}
+      {/* QUICK ACTIONS */}
 
-      <Card>
+      <Card className="border-border/70 shadow-sm">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Scissors className="size-5 text-primary" />
@@ -1010,151 +1090,85 @@ export default function CustomerDashboardPage() {
         </CardContent>
       </Card>
 
-      {/* ================================================== */}
-      {/* CANCEL APPOINTMENT CONFIRMATION */}
-      {/* ================================================== */}
+      {/* CANCEL APPOINTMENT CONFIRM */}
 
-      <AlertDialog
+      <Confirm
         open={!!appointmentToCancel}
-        onOpenChange={(open) => {
-          if (!cancellingId && !open) {
-            setAppointmentToCancel(null);
-          }
-        }}
+        onClose={() => setAppointmentToCancel(null)}
+        busy={!!cancellingId}
+        action={confirmCancelAppointment}
+        title="Cancel appointment?"
+        destructive
+        cancelLabel="Keep Appointment"
+        confirmLabel="Yes, Cancel Appointment"
+        text={
+          <>
+            Are you sure you want to cancel your appointment for{" "}
+            <span className="font-semibold text-foreground">
+              {appointmentToCancel?.serviceName}
+            </span>
+            ?
+          </>
+        }
       >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Cancel appointment?</AlertDialogTitle>
+        {appointmentToCancel && (
+          <div className="rounded-lg bg-muted/60 p-3">
+            <p className="text-sm font-medium">
+              {formatDay(appointmentToCancel.appointmentDate)}
+            </p>
 
-            <AlertDialogDescription>
-              Are you sure you want to cancel your appointment for{" "}
-              <span className="font-semibold text-foreground">
-                {appointmentToCancel?.serviceName}
-              </span>
-              ?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {formatSlot(appointmentToCancel.timeSlot)}
+            </p>
+          </div>
+        )}
+      </Confirm>
 
-          {appointmentToCancel && (
-            <div className="rounded-lg bg-muted/60 p-3">
-              <p className="text-sm font-medium">
-                {formatDate(appointmentToCancel.appointmentDate)}
-              </p>
+      {/* DELETE ONE HISTORY CONFIRM */}
 
-              <p className="mt-1 text-sm text-muted-foreground">
-                {formatTime(appointmentToCancel.timeSlot)}
-              </p>
-            </div>
-          )}
-
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={!!cancellingId}>
-              Keep Appointment
-            </AlertDialogCancel>
-
-            <AlertDialogAction
-              variant="destructive"
-              disabled={!!cancellingId}
-              onClick={(event) => {
-                event.preventDefault();
-                void confirmCancelAppointment();
-              }}
-            >
-              {cancellingId ? "Cancelling..." : "Yes, Cancel Appointment"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* ================================================== */}
-      {/* DELETE ONE APPOINTMENT HISTORY CONFIRMATION */}
-      {/* ================================================== */}
-
-      <AlertDialog
+      <Confirm
         open={!!appointmentToDelete}
-        onOpenChange={(open) => {
-          if (!deletingId && !deletingAllHistory && !open) {
-            setAppointmentToDelete(null);
-          }
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete appointment history?</AlertDialogTitle>
+        onClose={() => setAppointmentToDelete(null)}
+        busy={!!deletingId || deletingAllHistory}
+        action={handleDeleteAppointmentHistory}
+        title="Delete appointment history?"
+        destructive
+        cancelLabel="Keep History"
+        confirmLabel="Delete"
+        text={
+          <>
+            Are you sure you want to permanently delete the cancelled
+            appointment for{" "}
+            <span className="font-semibold text-foreground">
+              {appointmentToDelete?.serviceName}
+            </span>
+            ? This action cannot be undone.
+          </>
+        }
+      />
 
-            <AlertDialogDescription>
-              Are you sure you want to permanently delete the cancelled
-              appointment for{" "}
-              <span className="font-semibold text-foreground">
-                {appointmentToDelete?.serviceName}
-              </span>
-              ? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
+      {/* DELETE ALL HISTORY CONFIRM */}
 
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={!!deletingId}>
-              Keep History
-            </AlertDialogCancel>
-
-            <AlertDialogAction
-              variant="destructive"
-              disabled={!!deletingId || deletingAllHistory}
-              onClick={(event) => {
-                event.preventDefault();
-                void handleDeleteAppointmentHistory();
-              }}
-            >
-              {deletingId ? "Deleting..." : "Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* ================================================== */}
-      {/* DELETE ALL HISTORY CONFIRMATION */}
-      {/* ================================================== */}
-
-      <AlertDialog
+      <Confirm
         open={showDeleteAllConfirm}
-        onOpenChange={(open) => {
-          if (!deletingAllHistory) {
-            setShowDeleteAllConfirm(open);
-          }
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete all appointment history?</AlertDialogTitle>
-
-            <AlertDialogDescription>
-              Are you sure you want to permanently delete all{" "}
-              <span className="font-semibold text-foreground">
-                {cancelledAppointments} cancelled appointment history records
-              </span>
-              ? Pending and Confirmed appointments will not be affected. This
-              action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletingAllHistory}>
-              Keep History
-            </AlertDialogCancel>
-
-            <AlertDialogAction
-              variant="destructive"
-              disabled={deletingAllHistory || cancelledAppointments === 0}
-              onClick={(event) => {
-                event.preventDefault();
-                void handleDeleteAllAppointmentHistory();
-              }}
-            >
-              {deletingAllHistory ? "Deleting..." : "Delete All"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        onClose={() => setShowDeleteAllConfirm(false)}
+        busy={deletingAllHistory}
+        action={handleDeleteAllAppointmentHistory}
+        title="Delete all appointment history?"
+        destructive
+        cancelLabel="Keep History"
+        confirmLabel="Delete All"
+        text={
+          <>
+            Are you sure you want to permanently delete all{" "}
+            <span className="font-semibold text-foreground">
+              {stats.cancelled} cancelled appointment history records
+            </span>
+            ? Pending and Confirmed appointments will not be affected. This
+            action cannot be undone.
+          </>
+        }
+      />
     </div>
   );
 }
