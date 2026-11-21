@@ -37,6 +37,7 @@ type DashboardOverview = {
   pendingAppointments: number;
   confirmedAppointments: number;
   cancelledAppointments: number;
+  completedAppointments: number;
   blockedUsers: number;
 };
 
@@ -109,6 +110,8 @@ function getStatusClass(status: string) {
       return "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300";
     case "Cancelled":
       return "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300";
+    case "Completed":
+      return "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300";
     default:
       return "bg-muted text-muted-foreground";
   }
@@ -364,6 +367,12 @@ export default function AdminDashboardClient() {
           value={overview?.cancelledAppointments ?? 0}
           description="Cancelled bookings"
           icon={<XCircle className="size-5 text-red-500" />}
+        />
+        <StatCard
+          title="Completed"
+          value={overview?.completedAppointments ?? 0}
+          description="Services delivered"
+          icon={<CheckCircle2 className="size-5 text-sky-500" />}
         />
         <StatCard
           title="Blocked Users"

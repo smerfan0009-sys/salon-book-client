@@ -28,6 +28,7 @@ import {
   Tag,
   Timer,
   Scissors,
+  Star,
 } from "lucide-react";
 
 import { toast } from "sonner";
@@ -193,6 +194,7 @@ function StatusBadge({ status }: { status?: string }) {
     pending: "bg-amber-500/10 text-amber-600 border-amber-500/20",
     confirmed: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
     cancelled: "bg-red-500/10 text-red-600 border-red-500/20",
+    completed: "bg-sky-500/10 text-sky-600 border-sky-500/20",
     paid: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
     failed: "bg-red-500/10 text-red-600 border-red-500/20",
     active: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
@@ -521,6 +523,7 @@ export function AppointmentList() {
       pending: items.filter((x) => x.status === "Pending").length,
       confirmed: items.filter((x) => x.status === "Confirmed").length,
       cancelled: items.filter((x) => x.status === "Cancelled").length,
+      completed: items.filter((x) => x.status === "Completed").length,
     }),
     [items],
   );
@@ -646,6 +649,13 @@ export function AppointmentList() {
           description="Cancelled bookings"
           icon={<XCircle className="size-5" />}
         />
+
+        <MetricCard
+          title="Completed"
+          value={stats.completed}
+          description="Services delivered"
+          icon={<CheckCircle2 className="size-5 text-sky-500" />}
+        />
       </MetricGrid>
 
       <AdminList
@@ -669,6 +679,7 @@ export function AppointmentList() {
               <option value="pending">Pending</option>
               <option value="confirmed">Confirmed</option>
               <option value="cancelled">Cancelled</option>
+              <option value="completed">Completed</option>
             </select>
 
             {stats.cancelled > 0 && (
@@ -689,6 +700,7 @@ export function AppointmentList() {
         {shown.map((item) => {
           const isCancelled = item.status === "Cancelled";
           const isConfirmed = item.status === "Confirmed";
+          const isCompleted = item.status === "Completed";
 
           const cancelledByLabel = item.cancelledBy
             ? item.cancelledBy === item.customerId
@@ -830,6 +842,32 @@ export function AppointmentList() {
                   </p>
                 </div>
 
+                {isCompleted && (
+                  <div className="rounded-lg bg-muted/50 p-3 text-sm">
+                    <p className="font-medium">Feedback</p>
+                    {item.feedback?.rating ? (
+                      <div className="mt-2 flex items-center gap-1 text-amber-400">
+                        {[1, 2, 3, 4, 5].map((rating) => (
+                          <Star
+                            key={rating}
+                            className={`size-4 ${
+                              rating <= item.feedback.rating
+                                ? "fill-current"
+                                : "text-muted-foreground"
+                            }`}
+                          />
+                        ))}
+                        <span className="ml-1 text-xs text-muted-foreground">
+                          {item.feedback.rating} of 5
+                        </span>
+                      </div>
+                    ) : null}
+                    <p className="mt-2 text-muted-foreground">
+                      {item.feedback?.comment || "No feedback given."}
+                    </p>
+                  </div>
+                )}
+
                 {/* TIMELINE */}
 
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -875,6 +913,14 @@ export function AppointmentList() {
                         value={cancelledByLabel}
                       />
                     </>
+                  )}
+
+                  {isCompleted && (
+                    <DetailItem
+                      label="Completed on"
+                      icon={<CheckCircle2 className="size-3.5 text-sky-500" />}
+                      value={stamp(item.completedAt)}
+                    />
                   )}
                 </div>
 
