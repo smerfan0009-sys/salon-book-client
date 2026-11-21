@@ -22,6 +22,7 @@ import {
   Loader2,
   Inbox,
   CircleDollarSign,
+  Trash2,
 } from "lucide-react";
 
 import { toast } from "sonner";
@@ -357,6 +358,8 @@ export function AppointmentList() {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("all");
   const [target, setTarget] = useState<any>(null);
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [deleteAllOpen, setDeleteAllOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -441,6 +444,69 @@ export function AppointmentList() {
     }
   };
 
+  // DELETE ONE CANCELLED APPOINTMENT HISTORY
+  const deleteHistory = async () => {
+    if (!deleteTarget || busy) return;
+
+    const appointmentId = deleteTarget._id;
+
+    setBusy(true);
+
+    try {
+      await request(`/api/appointments/admin/${appointmentId}/history`, {
+        method: "DELETE",
+      });
+
+      setItems((current) =>
+        current.filter((item) => item._id !== appointmentId),
+      );
+
+      setDeleteTarget(null);
+
+      toast.success("Appointment history deleted successfully.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Unable to delete appointment history.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // DELETE ALL CANCELLED APPOINTMENT HISTORY
+  const deleteAllHistory = async () => {
+    if (stats.cancelled === 0 || busy) return;
+
+    setBusy(true);
+
+    try {
+      const response = await request(
+        "/api/appointments/admin/history/cancelled",
+        { method: "DELETE" },
+      );
+
+      setItems((current) =>
+        current.filter((item) => item.status !== "Cancelled"),
+      );
+
+      setDeleteAllOpen(false);
+
+      toast.success(
+        response.message || "All cancelled appointment history deleted.",
+      );
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Unable to delete appointment history.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <MetricGrid>
@@ -484,16 +550,31 @@ export function AppointmentList() {
         empty={shown.length === 0}
         emptyMessage="No appointments match your search or selected filter."
         filters={
-          <select
-            value={status}
-            onChange={(event) => setStatus(event.target.value)}
-            className="h-10 rounded-lg border border-border/70 bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20"
-          >
-            <option value="all">All statuses</option>
-            <option value="pending">Pending</option>
-            <option value="confirmed">Confirmed</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={status}
+              onChange={(event) => setStatus(event.target.value)}
+              className="h-10 rounded-lg border border-border/70 bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              <option value="all">All statuses</option>
+              <option value="pending">Pending</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+
+            {stats.cancelled > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10 gap-2 border-red-500/30 text-red-600 hover:bg-red-500/10 hover:text-red-600"
+                onClick={() => setDeleteAllOpen(true)}
+                disabled={busy}
+              >
+                <Trash2 className="size-4" />
+                Delete All History
+              </Button>
+            )}
+          </div>
         }
       >
         {shown.map((item) => (
@@ -568,7 +649,7 @@ export function AppointmentList() {
                 </div>
               </div>
 
-              {/* ACTIONS */}
+              {/* ACTIONS: PENDING */}
 
               {item.status === "Pending" && (
                 <>
@@ -596,17 +677,57 @@ export function AppointmentList() {
                   </div>
                 </>
               )}
+
+              {/* ACTIONS: CANCELLED */}
+
+              {item.status === "Cancelled" && (
+                <>
+                  <div className="h-px bg-border/70" />
+
+                  <div className="flex justify-end">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-2 border-red-500/30 text-red-600 hover:bg-red-500/10 hover:text-red-600"
+                      onClick={() => setDeleteTarget(item)}
+                      disabled={busy}
+                    >
+                      <Trash2 className="size-4" />
+                      Delete History
+                    </Button>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         ))}
       </AdminList>
 
+      {/* STATUS CHANGE CONFIRM */}
       <Confirm
         target={target}
         setTarget={setTarget}
         busy={busy}
         action={update}
         text={`Change this pending appointment to ${target?.next}?`}
+      />
+
+      {/* DELETE ONE HISTORY CONFIRM */}
+      <Confirm
+        target={deleteTarget}
+        setTarget={setDeleteTarget}
+        busy={busy}
+        action={deleteHistory}
+        text={`Permanently delete the cancelled appointment for ${deleteTarget?.serviceName || "this service"} (${deleteTarget?.customer?.name || "unknown customer"})? This action cannot be undone.`}
+      />
+
+      {/* DELETE ALL HISTORY CONFIRM */}
+      <Confirm
+        target={deleteAllOpen ? true : null}
+        setTarget={() => setDeleteAllOpen(false)}
+        busy={busy}
+        action={deleteAllHistory}
+        text={`Permanently delete all ${stats.cancelled} cancelled appointment records of ALL customers? Pending and Confirmed appointments will not be affected. This action cannot be undone.`}
       />
     </div>
   );

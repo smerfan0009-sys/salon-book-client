@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   ShieldCheck,
@@ -15,6 +14,7 @@ import {
   RefreshCw,
   Search,
   UserRound,
+  Trash2,
 } from "lucide-react";
 
 import {
@@ -24,6 +24,17 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 import { apiFetch } from "@/lib/api-fetch";
 
@@ -178,6 +189,15 @@ export default function AdminDashboardClient() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
+  // Appointment search + filter
+  const [appointmentSearch, setAppointmentSearch] = useState("");
+  const [appointmentStatus, setAppointmentStatus] = useState("all");
+
+  // Delete history dialogs
+  const [appointmentToDelete, setAppointmentToDelete] =
+    useState<AdminAppointment | null>(null);
+  const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
+
   // ------------------------------------------------
   // LOAD ADMIN DATA
   // ------------------------------------------------
@@ -280,6 +300,67 @@ export default function AdminDashboardClient() {
   }
 
   // ------------------------------------------------
+  // DELETE CANCELLED APPOINTMENT HISTORY
+  // ------------------------------------------------
+
+  async function handleDeleteHistory() {
+    if (!appointmentToDelete || busyId !== null) return;
+
+    const appointmentId = appointmentToDelete._id;
+
+    try {
+      setBusyId(`delete-${appointmentId}`);
+      setError(null);
+      setNotice(null);
+
+      await requestJson(`/api/appointments/admin/${appointmentId}/history`, {
+        method: "DELETE",
+      });
+
+      setAppointmentToDelete(null);
+      setNotice("Appointment history deleted successfully.");
+      setRefreshKey((current) => current + 1);
+    } catch (err) {
+      setAppointmentToDelete(null);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to delete appointment history.",
+      );
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function handleDeleteAllHistory() {
+    if (cancelledCount === 0 || busyId !== null) return;
+
+    try {
+      setBusyId("delete-all");
+      setError(null);
+      setNotice(null);
+
+      const result = await requestJson(
+        "/api/appointments/admin/history/cancelled",
+        { method: "DELETE" },
+      );
+
+      setShowDeleteAllConfirm(false);
+      setNotice(result.message || "All cancelled appointment history deleted.");
+      setRefreshKey((current) => current + 1);
+    } catch (err) {
+      setShowDeleteAllConfirm(false);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to delete appointment history.",
+      );
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  // ------------------------------------------------
   // BLOCK / UNBLOCK USER
   // ------------------------------------------------
 
@@ -320,7 +401,7 @@ export default function AdminDashboardClient() {
   }
 
   // ------------------------------------------------
-  // FILTER USERS
+  // FILTERS
   // ------------------------------------------------
 
   const filteredUsers = users.filter((user) => {
@@ -336,6 +417,31 @@ export default function AdminDashboardClient() {
   });
 
   const blockedUsers = users.filter((user) => user.isBlocked);
+
+  const cancelledCount = appointments.filter(
+    (appointment) => appointment.status === "Cancelled",
+  ).length;
+
+  const shownAppointments = useMemo(() => {
+    const searchValue = appointmentSearch.trim().toLowerCase();
+
+    return appointments.filter((appointment) => {
+      const matchesStatus =
+        appointmentStatus === "all" ||
+        String(appointment.status || "").toLowerCase() === appointmentStatus;
+
+      const searchText = [
+        appointment._id,
+        appointment.serviceName,
+        appointment.customer?.name,
+        appointment.customer?.email,
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return matchesStatus && searchText.includes(searchValue);
+    });
+  }, [appointments, appointmentSearch, appointmentStatus]);
 
   // ------------------------------------------------
   // LOADING
@@ -405,7 +511,6 @@ export default function AdminDashboardClient() {
 
       {/* OVERVIEW */}
 
-
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -429,7 +534,9 @@ export default function AdminDashboardClient() {
             <CheckCircle2 className="size-5 text-emerald-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{overview?.confirmedAppointments ?? 0}</div>
+            <div className="text-2xl font-bold">
+              {overview?.confirmedAppointments ?? 0}
+            </div>
             <p className="text-xs text-muted-foreground">Confirmed bookings</p>
           </CardContent>
         </Card>
@@ -440,7 +547,9 @@ export default function AdminDashboardClient() {
             <XCircle className="size-5 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{overview?.cancelledAppointments ?? 0}</div>
+            <div className="text-2xl font-bold">
+              {overview?.cancelledAppointments ?? 0}
+            </div>
             <p className="text-xs text-muted-foreground">Cancelled bookings</p>
           </CardContent>
         </Card>
@@ -508,26 +617,75 @@ export default function AdminDashboardClient() {
               </CardDescription>
             </div>
 
-            <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium">
-              {appointments.length} appointments
-            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              {cancelledCount > 0 && (
+                <button
+                  type="button"
+                  disabled={busyId !== null}
+                  onClick={() => setShowDeleteAllConfirm(true)}
+                  className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900 dark:hover:bg-red-950"
+                >
+                  {busyId === "delete-all" ? (
+                    <RefreshCw className="size-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="size-4" />
+                  )}
+                  Delete All History
+                </button>
+              )}
+
+              <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium">
+                {shownAppointments.length}{" "}
+                {shownAppointments.length === 1 ? "result" : "results"}
+              </span>
+            </div>
+          </div>
+
+          {/* SEARCH AND STATUS FILTER */}
+
+          <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+
+              <input
+                type="search"
+                value={appointmentSearch}
+                onChange={(event) => setAppointmentSearch(event.target.value)}
+                placeholder="Search by service, customer name, email or ID..."
+                className="h-10 w-full rounded-lg border bg-background pl-9 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary"
+              />
+            </div>
+
+            <select
+              value={appointmentStatus}
+              onChange={(event) => setAppointmentStatus(event.target.value)}
+              className="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              <option value="all">All statuses</option>
+              <option value="pending">Pending</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
           </div>
         </CardHeader>
 
         <CardContent>
-          {appointments.length === 0 ? (
+          {shownAppointments.length === 0 ? (
             <div className="py-10 text-center">
               <CalendarDays className="mx-auto mb-3 size-10 text-muted-foreground/50" />
               <p className="font-medium">No appointments found</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Customer bookings will appear here.
+                {appointments.length === 0
+                  ? "Customer bookings will appear here."
+                  : "No appointments match your search or selected filter."}
               </p>
             </div>
           ) : (
             <div className="flex flex-col gap-4">
-              {appointments.map((appointment) => {
+              {shownAppointments.map((appointment) => {
                 const actionId = `appointment-${appointment._id}`;
                 const isBusy = busyId === actionId;
+                const isDeleting = busyId === `delete-${appointment._id}`;
 
                 return (
                   <div key={appointment._id} className="rounded-xl border p-4">
@@ -536,6 +694,10 @@ export default function AdminDashboardClient() {
                         <h3 className="font-semibold">
                           {appointment.serviceName || "Salon Service"}
                         </h3>
+
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Appointment ID: #{String(appointment._id).slice(-10)}
+                        </p>
 
                         <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                           <span className="inline-flex items-center gap-1.5">
@@ -618,6 +780,24 @@ export default function AdminDashboardClient() {
                         >
                           <XCircle className="size-4" />
                           Cancel
+                        </button>
+                      </div>
+                    )}
+
+                    {appointment.status === "Cancelled" && (
+                      <div className="mt-4 flex justify-end border-t pt-4">
+                        <button
+                          type="button"
+                          disabled={busyId !== null}
+                          onClick={() => setAppointmentToDelete(appointment)}
+                          className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900 dark:hover:bg-red-950"
+                        >
+                          {isDeleting ? (
+                            <RefreshCw className="size-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="size-4" />
+                          )}
+                          Delete History
                         </button>
                       </div>
                     )}
@@ -835,6 +1015,90 @@ export default function AdminDashboardClient() {
           </p>
         </CardContent>
       </Card>
+
+      {/* DELETE ONE HISTORY CONFIRMATION */}
+
+      <AlertDialog
+        open={!!appointmentToDelete}
+        onOpenChange={(open) => {
+          if (!open && busyId === null) setAppointmentToDelete(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete appointment history?</AlertDialogTitle>
+
+            <AlertDialogDescription>
+              Permanently delete the cancelled appointment for{" "}
+              <span className="font-semibold text-foreground">
+                {appointmentToDelete?.serviceName}
+              </span>
+              {appointmentToDelete?.customer?.name
+                ? ` (${appointmentToDelete.customer.name})`
+                : ""}
+              ? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busyId !== null}>
+              Keep History
+            </AlertDialogCancel>
+
+            <AlertDialogAction
+              variant="destructive"
+              disabled={busyId !== null}
+              onClick={(event) => {
+                event.preventDefault();
+                void handleDeleteHistory();
+              }}
+            >
+              {busyId?.startsWith("delete-") ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* DELETE ALL HISTORY CONFIRMATION */}
+
+      <AlertDialog
+        open={showDeleteAllConfirm}
+        onOpenChange={(open) => {
+          if (busyId === null) setShowDeleteAllConfirm(open);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete all appointment history?</AlertDialogTitle>
+
+            <AlertDialogDescription>
+              Permanently delete all{" "}
+              <span className="font-semibold text-foreground">
+                {cancelledCount} cancelled appointment records
+              </span>{" "}
+              of ALL customers? Pending and Confirmed appointments will not be
+              affected. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busyId !== null}>
+              Keep History
+            </AlertDialogCancel>
+
+            <AlertDialogAction
+              variant="destructive"
+              disabled={busyId !== null || cancelledCount === 0}
+              onClick={(event) => {
+                event.preventDefault();
+                void handleDeleteAllHistory();
+              }}
+            >
+              {busyId === "delete-all" ? "Deleting..." : "Delete All"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
