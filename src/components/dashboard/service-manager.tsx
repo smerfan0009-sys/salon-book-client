@@ -169,7 +169,7 @@ export default function ServiceManager() {
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold">{s.serviceName}</p>
                     <p className="text-sm text-muted-foreground">
-                      {s.category} · ৳{Number(s.price).toLocaleString()} ·{" "}
+                      {s.category} · ${Number(s.price).toLocaleString()} ·{" "}
                       {s.duration} min
                     </p>
                   </div>

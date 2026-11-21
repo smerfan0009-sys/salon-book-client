@@ -107,7 +107,7 @@ export default function ServiceCard({ service, index = 0 }: ServiceCardProps) {
             </span>
 
             <span className="bg-gradient-to-r from-amber-600 via-yellow-600 to-amber-500 bg-clip-text text-xl font-extrabold text-transparent dark:from-amber-300 dark:via-yellow-300 dark:to-amber-400">
-              ৳{formattedPrice}
+              ${formattedPrice}
             </span>
           </div>
 

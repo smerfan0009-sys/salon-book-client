@@ -110,7 +110,7 @@ const formatPrice = (price?: number | string) => {
 
   return Number.isNaN(numeric)
     ? String(price)
-    : `৳${numeric.toLocaleString("en-BD")}`;
+    : `$${numeric.toLocaleString("en-US")}`;
 };
 
 const formatDuration = (duration?: number | string) => {

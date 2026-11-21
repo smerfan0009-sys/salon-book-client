@@ -52,7 +52,7 @@ const SERVICE_ENDPOINT = (id: string) =>
 const APPOINTMENTS_ENDPOINT = "/api/appointments";
 const LOGIN_PATH = "/sign-in";
 
-const CURRENCY_SYMBOL = "৳";
+const CURRENCY_SYMBOL = "$";
 
 const FALLBACK_SERVICE_IMAGE =
   "https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=900&q=80";
