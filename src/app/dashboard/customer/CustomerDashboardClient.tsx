@@ -205,7 +205,7 @@ export default function CustomerDashboardClient() {
           body: JSON.stringify({ appointmentId: appointment._id }),
         },
       );
-      window.location.href = result.data.url;
+      window.location.assign(result.data.url);
     } catch (err) {
       setBusyId(null);
       setError(err instanceof Error ? err.message : "Failed to start payment.");
