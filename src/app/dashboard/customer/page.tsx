@@ -17,6 +17,7 @@ import {
   Eye,
   XCircle,
   Tag,
+  Trash2,
 } from "lucide-react";
 
 import {
@@ -26,6 +27,19 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+
+import { Button } from "@/components/ui/button";
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 import { apiFetch } from "@/lib/api-fetch";
 
@@ -55,7 +69,6 @@ interface Appointment {
   serviceId: string;
   serviceName: string;
 
-  // Optional service information from appointment API
   serviceImage?: string;
   serviceCategory?: string;
   servicePrice?: number | string;
@@ -116,8 +129,8 @@ async function fetchCustomerDashboardData(): Promise<{
     ? appointmentPayload.data
     : [];
 
-  // Fetch services separately.
-  // Appointment loading should still work if services fail.
+  // Fetch services separately
+  // Appointment loading should still work if services fail
   let services: Service[] = [];
 
   try {
@@ -199,7 +212,7 @@ function formatPrice(price?: number | string) {
   return `৳${numericPrice.toLocaleString("en-BD")}`;
 }
 
-// Find the corresponding service using serviceId
+// Find corresponding service using serviceId
 function findAppointmentService(appointment: Appointment, services: Service[]) {
   return services.find(
     (service) => String(service._id) === String(appointment.serviceId),
@@ -295,10 +308,27 @@ export default function CustomerDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Cancellation states
+  // --------------------------------------------------
+  // ACTION STATES
+  // --------------------------------------------------
+
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const [deletingAllHistory, setDeletingAllHistory] = useState(false);
+
+  // --------------------------------------------------
+  // CONFIRMATION DIALOG STATES
+  // --------------------------------------------------
+
   const [appointmentToCancel, setAppointmentToCancel] =
     useState<Appointment | null>(null);
+
+  const [appointmentToDelete, setAppointmentToDelete] =
+    useState<Appointment | null>(null);
+
+  const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
 
   // --------------------------------------------------
   // INITIAL DATA FETCH
@@ -333,7 +363,7 @@ export default function CustomerDashboardPage() {
       }
     }
 
-    loadDashboard();
+    void loadDashboard();
 
     return () => {
       cancelled = true;
@@ -372,7 +402,107 @@ export default function CustomerDashboardPage() {
   }, []);
 
   // --------------------------------------------------
-  // OPEN CANCEL CONFIRMATION MODAL
+  // DELETE ONE CANCELLED APPOINTMENT HISTORY
+  // --------------------------------------------------
+
+  const handleDeleteAppointmentHistory = async () => {
+    if (!appointmentToDelete || deletingId || deletingAllHistory) {
+      return;
+    }
+
+    const appointmentId = appointmentToDelete._id;
+
+    try {
+      setDeletingId(appointmentId);
+
+      const response = await apiFetch(
+        `/api/appointments/${appointmentId}/history`,
+        {
+          method: "DELETE",
+        },
+      );
+
+      const payload = (await response.json()) as ActionResponse;
+
+      if (!response.ok || !payload.success) {
+        throw new Error(
+          payload.message || "Failed to delete appointment history.",
+        );
+      }
+
+      // Update appointment list
+      setAppointments((current) =>
+        current.filter((item) => item._id !== appointmentId),
+      );
+
+      // Close confirmation dialog
+      setAppointmentToDelete(null);
+
+      toast.success("Appointment history deleted successfully.");
+    } catch (err) {
+      console.error("Delete appointment history error:", err);
+
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "Could not delete appointment history.",
+      );
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  // --------------------------------------------------
+  // DELETE ALL CANCELLED APPOINTMENT HISTORY
+  // --------------------------------------------------
+
+  const handleDeleteAllAppointmentHistory = async () => {
+    if (cancelledAppointments === 0 || deletingId || deletingAllHistory) {
+      return;
+    }
+
+    try {
+      setDeletingAllHistory(true);
+
+      const response = await apiFetch("/api/appointments/history/cancelled", {
+        method: "DELETE",
+      });
+
+      const payload = (await response.json()) as ActionResponse;
+
+      if (!response.ok || !payload.success) {
+        throw new Error(
+          payload.message || "Failed to delete appointment history.",
+        );
+      }
+
+      // Remove cancelled appointments from UI
+      setAppointments((current) =>
+        current.filter((appointment) => appointment.status !== "Cancelled"),
+      );
+
+      // Close confirmation dialog
+      setShowDeleteAllConfirm(false);
+
+      toast.success(
+        payload.message ||
+          "All cancelled appointment history deleted successfully.",
+      );
+    } catch (err) {
+      console.error("Delete all appointment history error:", err);
+
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "Could not delete appointment history.",
+      );
+    } finally {
+      setDeletingAllHistory(false);
+    }
+  };
+
+  // --------------------------------------------------
+  // OPEN CANCEL CONFIRMATION DIALOG
   // --------------------------------------------------
 
   const handleCancelAppointment = (appointment: Appointment) => {
@@ -404,10 +534,9 @@ export default function CustomerDashboardPage() {
         throw new Error(payload.message || "Failed to cancel appointment.");
       }
 
-      // Close confirmation modal
+      // Close confirmation dialog
       setAppointmentToCancel(null);
 
-      // Success notification
       toast.success("Appointment cancelled successfully.");
 
       // Refresh appointment list and statistics
@@ -415,14 +544,11 @@ export default function CustomerDashboardPage() {
     } catch (err) {
       console.error("Cancel appointment error:", err);
 
-      const message =
+      toast.error(
         err instanceof Error
           ? err.message
-          : "Something went wrong while cancelling.";
-
-      // Error notification
-      // Modal stays open so the customer can retry
-      toast.error(message);
+          : "Something went wrong while cancelling.",
+      );
     } finally {
       setCancellingId(null);
     }
@@ -447,6 +573,13 @@ export default function CustomerDashboardPage() {
   ).length;
 
   // --------------------------------------------------
+  // ACTION STATUS
+  // --------------------------------------------------
+
+  const isAnyActionRunning =
+    !!cancellingId || !!deletingId || deletingAllHistory;
+
+  // --------------------------------------------------
   // RENDER
   // --------------------------------------------------
 
@@ -466,8 +599,19 @@ export default function CustomerDashboardPage() {
       </div>
 
       <div className="flex flex-wrap gap-3">
-        <Link href="/dashboard/customer/appointments" className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">My Appointments</Link>
-        <Link href="/dashboard/customer/profile" className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted">My Profile</Link>
+        <Link
+          href="/dashboard/customer/appointments"
+          className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+        >
+          My Appointments
+        </Link>
+
+        <Link
+          href="/dashboard/customer/profile"
+          className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted"
+        >
+          My Profile
+        </Link>
       </div>
 
       {/* Appointment Statistics */}
@@ -547,15 +691,42 @@ export default function CustomerDashboardPage() {
             </CardDescription>
           </div>
 
-          <button
-            type="button"
-            onClick={() => fetchAppointments()}
-            disabled={loading}
-            className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border transition-colors hover:bg-muted disabled:opacity-50"
-            aria-label="Refresh appointments"
-          >
-            <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            {/* DELETE ALL HISTORY BUTTON */}
+
+            {cancelledAppointments > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="border-red-500/30 text-red-600 hover:bg-red-500/10 hover:text-red-600 dark:text-red-400"
+                onClick={() => setShowDeleteAllConfirm(true)}
+                disabled={isAnyActionRunning || loading}
+              >
+                {deletingAllHistory ? (
+                  <RefreshCw className="mr-2 size-4 animate-spin" />
+                ) : (
+                  <Trash2 className="mr-2 size-4" />
+                )}
+                Delete All History
+              </Button>
+            )}
+
+            {/* REFRESH BUTTON */}
+
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={() => void fetchAppointments()}
+              disabled={loading || isAnyActionRunning}
+              aria-label="Refresh appointments"
+            >
+              <RefreshCw
+                className={`size-4 ${loading ? "animate-spin" : ""}`}
+              />
+            </Button>
+          </div>
         </CardHeader>
 
         <CardContent>
@@ -580,13 +751,13 @@ export default function CustomerDashboardPage() {
 
               <p className="text-sm text-destructive">{error}</p>
 
-              <button
+              <Button
                 type="button"
-                onClick={() => fetchAppointments()}
-                className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+                onClick={() => void fetchAppointments()}
+                disabled={isAnyActionRunning}
               >
                 Try Again
-              </button>
+              </Button>
             </div>
           )}
 
@@ -605,13 +776,12 @@ export default function CustomerDashboardPage() {
                 services and book your first appointment.
               </p>
 
-              <Link
-                href="/services"
-                className="mt-2 inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
-              >
-                Explore Services
-                <ArrowRight className="size-4" />
-              </Link>
+              <Button className="mt-2">
+                <Link href="/services">
+                  Explore Services
+                  <ArrowRight className="ml-2 size-4" />
+                </Link>
+              </Button>
             </div>
           )}
 
@@ -620,7 +790,6 @@ export default function CustomerDashboardPage() {
           {!loading && !error && appointments.length > 0 && (
             <div className="space-y-4">
               {appointments.map((appointment) => {
-                // Match appointment with its service
                 const matchedService = findAppointmentService(
                   appointment,
                   services,
@@ -642,8 +811,9 @@ export default function CustomerDashboardPage() {
                 );
 
                 const isPending = appointment.status === "Pending";
-
                 const isCancelling = cancellingId === appointment._id;
+                const isCancelled = appointment.status === "Cancelled";
+                const isDeleting = deletingId === appointment._id;
 
                 return (
                   <div
@@ -651,6 +821,28 @@ export default function CustomerDashboardPage() {
                     className="rounded-xl border p-4 transition-colors hover:bg-muted/30 sm:p-5"
                   >
                     <div className="flex flex-col gap-5">
+                      {/* DELETE HISTORY BUTTON */}
+
+                      {isCancelled && (
+                        <div className="flex justify-end">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="border-red-500/30 text-red-600 hover:bg-red-500/10 hover:text-red-600 dark:text-red-400"
+                            onClick={() => setAppointmentToDelete(appointment)}
+                            disabled={isAnyActionRunning || loading}
+                          >
+                            {isDeleting ? (
+                              <RefreshCw className="mr-2 size-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="mr-2 size-4" />
+                            )}
+                            Delete History
+                          </Button>
+                        </div>
+                      )}
+
                       {/* Service Information */}
 
                       <div className="flex flex-col gap-4 sm:flex-row">
@@ -766,24 +958,22 @@ export default function CustomerDashboardPage() {
                         {/* Cancel: Pending Only */}
 
                         {isPending && (
-                          <button
+                          <Button
                             type="button"
+                            variant="outline"
+                            size="sm"
+                            className="border-red-500/30 text-red-600 hover:bg-red-500/10 hover:text-red-600 dark:text-red-400"
                             onClick={() => handleCancelAppointment(appointment)}
-                            disabled={isCancelling}
-                            className="inline-flex items-center gap-2 rounded-lg border border-red-500/30 px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50 dark:text-red-400"
+                            disabled={isAnyActionRunning || loading}
                           >
                             {isCancelling ? (
-                              <RefreshCw className="size-4 animate-spin" />
+                              <RefreshCw className="mr-2 size-4 animate-spin" />
                             ) : (
-                              <XCircle className="size-4" />
+                              <XCircle className="mr-2 size-4" />
                             )}
-
-                            {isCancelling
-                              ? "Cancelling..."
-                              : "Cancel Appointment"}
-                          </button>
+                            Cancel Appointment
+                          </Button>
                         )}
-
                       </div>
                     </div>
                   </div>
@@ -820,109 +1010,151 @@ export default function CustomerDashboardPage() {
         </CardContent>
       </Card>
 
-      {/* -------------------------------------------------- */}
-      {/* CANCEL APPOINTMENT CONFIRMATION MODAL */}
-      {/* -------------------------------------------------- */}
+      {/* ================================================== */}
+      {/* CANCEL APPOINTMENT CONFIRMATION */}
+      {/* ================================================== */}
 
-      {appointmentToCancel && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
-          onClick={(event) => {
-            if (
-              event.target === event.currentTarget &&
-              cancellingId !== appointmentToCancel._id
-            ) {
-              setAppointmentToCancel(null);
-            }
-          }}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="cancel-dialog-title"
-            aria-describedby="cancel-dialog-description"
-            className="w-full max-w-md rounded-2xl border bg-background p-6 shadow-2xl"
-          >
-            {/* Modal Icon */}
+      <AlertDialog
+        open={!!appointmentToCancel}
+        onOpenChange={(open) => {
+          if (!cancellingId && !open) {
+            setAppointmentToCancel(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel appointment?</AlertDialogTitle>
 
-            <div className="mb-5 flex size-12 items-center justify-center rounded-full bg-red-500/10">
-              <AlertCircle className="size-6 text-red-500" />
-            </div>
+            <AlertDialogDescription>
+              Are you sure you want to cancel your appointment for{" "}
+              <span className="font-semibold text-foreground">
+                {appointmentToCancel?.serviceName}
+              </span>
+              ?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
 
-            {/* Modal Content */}
+          {appointmentToCancel && (
+            <div className="rounded-lg bg-muted/60 p-3">
+              <p className="text-sm font-medium">
+                {formatDate(appointmentToCancel.appointmentDate)}
+              </p>
 
-            <div className="space-y-3">
-              <div className="space-y-2">
-                <h2
-                  id="cancel-dialog-title"
-                  className="text-xl font-semibold tracking-tight"
-                >
-                  Cancel Appointment?
-                </h2>
-
-                <p
-                  id="cancel-dialog-description"
-                  className="text-sm leading-relaxed text-muted-foreground"
-                >
-                  Are you sure you want to cancel your appointment for{" "}
-                  <span className="font-semibold text-foreground">
-                    {appointmentToCancel.serviceName}
-                  </span>
-                  ?
-                </p>
-              </div>
-
-              {/* Appointment Details */}
-
-              <div className="rounded-lg bg-muted/60 p-3">
-                <p className="text-sm font-medium">
-                  {formatDate(appointmentToCancel.appointmentDate)}
-                </p>
-
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {formatTime(appointmentToCancel.timeSlot)}
-                </p>
-              </div>
-
-              <p className="text-xs text-muted-foreground">
-                This action will cancel your appointment request.
+              <p className="mt-1 text-sm text-muted-foreground">
+                {formatTime(appointmentToCancel.timeSlot)}
               </p>
             </div>
+          )}
 
-            {/* Modal Actions */}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={!!cancellingId}>
+              Keep Appointment
+            </AlertDialogCancel>
 
-            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                onClick={() => setAppointmentToCancel(null)}
-                disabled={cancellingId === appointmentToCancel._id}
-                className="rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Keep Appointment
-              </button>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={!!cancellingId}
+              onClick={(event) => {
+                event.preventDefault();
+                void confirmCancelAppointment();
+              }}
+            >
+              {cancellingId ? "Cancelling..." : "Yes, Cancel Appointment"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
-              <button
-                type="button"
-                onClick={confirmCancelAppointment}
-                disabled={cancellingId === appointmentToCancel._id}
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {cancellingId === appointmentToCancel._id ? (
-                  <>
-                    <RefreshCw className="size-4 animate-spin" />
-                    Cancelling...
-                  </>
-                ) : (
-                  <>
-                    <XCircle className="size-4" />
-                    Yes, Cancel Appointment
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ================================================== */}
+      {/* DELETE ONE APPOINTMENT HISTORY CONFIRMATION */}
+      {/* ================================================== */}
+
+      <AlertDialog
+        open={!!appointmentToDelete}
+        onOpenChange={(open) => {
+          if (!deletingId && !deletingAllHistory && !open) {
+            setAppointmentToDelete(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete appointment history?</AlertDialogTitle>
+
+            <AlertDialogDescription>
+              Are you sure you want to permanently delete the cancelled
+              appointment for{" "}
+              <span className="font-semibold text-foreground">
+                {appointmentToDelete?.serviceName}
+              </span>
+              ? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={!!deletingId}>
+              Keep History
+            </AlertDialogCancel>
+
+            <AlertDialogAction
+              variant="destructive"
+              disabled={!!deletingId || deletingAllHistory}
+              onClick={(event) => {
+                event.preventDefault();
+                void handleDeleteAppointmentHistory();
+              }}
+            >
+              {deletingId ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ================================================== */}
+      {/* DELETE ALL HISTORY CONFIRMATION */}
+      {/* ================================================== */}
+
+      <AlertDialog
+        open={showDeleteAllConfirm}
+        onOpenChange={(open) => {
+          if (!deletingAllHistory) {
+            setShowDeleteAllConfirm(open);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete all appointment history?</AlertDialogTitle>
+
+            <AlertDialogDescription>
+              Are you sure you want to permanently delete all{" "}
+              <span className="font-semibold text-foreground">
+                {cancelledAppointments} cancelled appointment history records
+              </span>
+              ? Pending and Confirmed appointments will not be affected. This
+              action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingAllHistory}>
+              Keep History
+            </AlertDialogCancel>
+
+            <AlertDialogAction
+              variant="destructive"
+              disabled={deletingAllHistory || cancelledAppointments === 0}
+              onClick={(event) => {
+                event.preventDefault();
+                void handleDeleteAllAppointmentHistory();
+              }}
+            >
+              {deletingAllHistory ? "Deleting..." : "Delete All"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

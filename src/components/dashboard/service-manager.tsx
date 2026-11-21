@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Loader2, Plus, Search, Pencil, Power, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api-fetch";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -109,10 +109,10 @@ export default function ServiceManager() {
             Control availability without compromising appointment history.
           </p>
         </div>
-        <Button render={<Link href="/dashboard/admin/services/new" />}>
+        <Link href="/dashboard/admin/services/new" className={buttonVariants()}>
           <Plus />
           Add Service
-        </Button>
+        </Link>
       </div>
       <Card>
         <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -178,18 +178,16 @@ export default function ServiceManager() {
                     {s.status}
                   </span>
                   <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      render={
-                        <Link
-                          href={`/dashboard/admin/services/${s._id}/edit`}
-                        />
-                      }
+                    <Link
+                      href={`/dashboard/admin/services/${s._id}/edit`}
+                      className={buttonVariants({
+                        size: "sm",
+                        variant: "outline",
+                      })}
                     >
                       <Pencil />
                       Edit
-                    </Button>
+                    </Link>
                     <Button
                       size="sm"
                       variant="outline"

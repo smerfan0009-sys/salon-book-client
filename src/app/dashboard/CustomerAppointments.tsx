@@ -10,10 +10,24 @@ import {
   XCircle,
   Loader2,
   RefreshCw,
+  Trash2,
 } from "lucide-react";
+
 import Link from "next/link";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // --------------------------------------------------
 // TYPES
@@ -29,6 +43,12 @@ interface Appointment {
   status: "Pending" | "Confirmed" | "Cancelled";
   paymentStatus: string;
   createdAt: string;
+}
+
+interface ApiResponse {
+  success: boolean;
+  message?: string;
+  data?: Appointment[];
 }
 
 // --------------------------------------------------
@@ -83,10 +103,32 @@ function getStatusStyle(status: Appointment["status"]) {
 
 export default function CustomerAppointments() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+
+  // --------------------------------------------------
+  // ACTION STATES
+  // --------------------------------------------------
+
   const [cancelingId, setCancelingId] = useState<string | null>(null);
+
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const [deletingAllHistory, setDeletingAllHistory] = useState(false);
+
+  // --------------------------------------------------
+  // CONFIRMATION DIALOG STATES
+  // --------------------------------------------------
+
+  const [appointmentToCancel, setAppointmentToCancel] =
+    useState<Appointment | null>(null);
+
+  const [appointmentToDelete, setAppointmentToDelete] =
+    useState<Appointment | null>(null);
+
+  const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
 
   // --------------------------------------------------
   // FETCH APPOINTMENTS
@@ -102,7 +144,7 @@ export default function CustomerAppointments() {
       signal,
     });
 
-    const result = await response.json();
+    const result = (await response.json()) as ApiResponse;
 
     if (!response.ok || !result.success) {
       throw new Error(result.message || "Failed to load appointments.");
@@ -169,12 +211,10 @@ export default function CustomerAppointments() {
   // CANCEL APPOINTMENT
   // --------------------------------------------------
 
-  const handleCancel = async (appointmentId: string) => {
-    const confirmed = window.confirm(
-      "Are you sure you want to cancel this appointment?",
-    );
+  const handleCancel = async () => {
+    if (!appointmentToCancel || cancelingId) return;
 
-    if (!confirmed) return;
+    const appointmentId = appointmentToCancel._id;
 
     try {
       setCancelingId(appointmentId);
@@ -196,6 +236,7 @@ export default function CustomerAppointments() {
         throw new Error(result.message || "Failed to cancel appointment.");
       }
 
+      // Update appointment status
       setAppointments((current) =>
         current.map((appointment) =>
           appointment._id === appointmentId
@@ -203,10 +244,15 @@ export default function CustomerAppointments() {
             : appointment,
         ),
       );
+
+      // Close dialog
+      setAppointmentToCancel(null);
+
+      toast.success("Appointment cancelled successfully.");
     } catch (err) {
       console.error("Cancel appointment error:", err);
 
-      alert(
+      toast.error(
         err instanceof Error
           ? err.message
           : "Could not cancel the appointment.",
@@ -215,6 +261,126 @@ export default function CustomerAppointments() {
       setCancelingId(null);
     }
   };
+
+  // --------------------------------------------------
+  // DELETE ONE CANCELLED APPOINTMENT HISTORY
+  // --------------------------------------------------
+
+  const handleDeleteHistory = async () => {
+    if (!appointmentToDelete || deletingId || deletingAllHistory) {
+      return;
+    }
+
+    const appointmentId = appointmentToDelete._id;
+
+    try {
+      setDeletingId(appointmentId);
+
+      const response = await fetch(
+        `${APPOINTMENTS_URL}/${appointmentId}/history`,
+        {
+          method: "DELETE",
+          credentials: "include",
+          headers: {
+            Accept: "application/json",
+          },
+        },
+      );
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(
+          result.message || "Failed to delete appointment history.",
+        );
+      }
+
+      // Update UI
+      setAppointments((current) =>
+        current.filter((appointment) => appointment._id !== appointmentId),
+      );
+
+      // Close dialog
+      setAppointmentToDelete(null);
+
+      toast.success("Appointment history deleted successfully.");
+    } catch (err) {
+      console.error("Delete appointment history error:", err);
+
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "Could not delete appointment history.",
+      );
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  // --------------------------------------------------
+  // DELETE ALL CANCELLED APPOINTMENT HISTORY
+  // --------------------------------------------------
+
+  const handleDeleteAllHistory = async () => {
+    const cancelledCount = appointments.filter(
+      (appointment) => appointment.status === "Cancelled",
+    ).length;
+
+    if (!cancelledCount || deletingId || deletingAllHistory) {
+      return;
+    }
+
+    try {
+      setDeletingAllHistory(true);
+
+      const response = await fetch(`${APPOINTMENTS_URL}/history/cancelled`, {
+        method: "DELETE",
+        credentials: "include",
+        headers: {
+          Accept: "application/json",
+        },
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(
+          result.message || "Failed to delete appointment history.",
+        );
+      }
+
+      // Update UI
+      setAppointments((current) =>
+        current.filter((appointment) => appointment.status !== "Cancelled"),
+      );
+
+      // Close dialog
+      setShowDeleteAllConfirm(false);
+
+      toast.success(
+        result.message ||
+          "All cancelled appointment history deleted successfully.",
+      );
+    } catch (err) {
+      console.error("Delete all appointment history error:", err);
+
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "Could not delete appointment history.",
+      );
+    } finally {
+      setDeletingAllHistory(false);
+    }
+  };
+
+  // --------------------------------------------------
+  // DERIVED DATA
+  // --------------------------------------------------
+
+  const cancelledCount = appointments.filter(
+    (appointment) => appointment.status === "Cancelled",
+  ).length;
 
   // --------------------------------------------------
   // LOADING STATE
@@ -304,19 +470,45 @@ export default function CustomerAppointments() {
           </p>
         </div>
 
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleRefresh}
-          disabled={refreshing}
-        >
-          {refreshing ? (
-            <Loader2 className="mr-2 size-4 animate-spin" />
-          ) : (
-            <RefreshCw className="mr-2 size-4" />
+        <div className="flex flex-wrap items-center gap-2">
+          {/* DELETE ALL HISTORY BUTTON */}
+
+          {cancelledCount > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => setShowDeleteAllConfirm(true)}
+              disabled={
+                deletingAllHistory ||
+                !!deletingId ||
+                refreshing ||
+                !!cancelingId
+              }
+            >
+              <Trash2 className="mr-2 size-4" />
+              Delete All History
+            </Button>
           )}
-          Refresh
-        </Button>
+
+          {/* REFRESH BUTTON */}
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={
+              refreshing || deletingAllHistory || !!deletingId || !!cancelingId
+            }
+          >
+            {refreshing ? (
+              <Loader2 className="mr-2 size-4 animate-spin" />
+            ) : (
+              <RefreshCw className="mr-2 size-4" />
+            )}
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {/* REFRESH ERROR */}
@@ -434,28 +626,210 @@ export default function CustomerAppointments() {
             )}
           </div>
 
-          {/* CANCEL BUTTON */}
+          {/* APPOINTMENT ACTIONS */}
 
-          {appointment.status === "Pending" && (
-            <div className="mt-5 flex justify-end border-t pt-4">
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                disabled={cancelingId === appointment._id}
-                onClick={() => handleCancel(appointment._id)}
-              >
-                {cancelingId === appointment._id ? (
-                  <Loader2 className="mr-2 size-4 animate-spin" />
-                ) : (
+          {(appointment.status === "Pending" ||
+            appointment.status === "Cancelled") && (
+            <div className="mt-5 flex flex-wrap justify-end gap-2 border-t pt-4">
+              {/* CANCEL BUTTON */}
+
+              {appointment.status === "Pending" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  disabled={
+                    cancelingId === appointment._id ||
+                    !!deletingId ||
+                    deletingAllHistory ||
+                    !!cancelingId
+                  }
+                  onClick={() => setAppointmentToCancel(appointment)}
+                >
                   <XCircle className="mr-2 size-4" />
-                )}
-                Cancel Appointment
-              </Button>
+                  Cancel Appointment
+                </Button>
+              )}
+
+              {/* DELETE HISTORY BUTTON */}
+
+              {appointment.status === "Cancelled" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  disabled={
+                    deletingId === appointment._id ||
+                    deletingAllHistory ||
+                    !!cancelingId
+                  }
+                  onClick={() => setAppointmentToDelete(appointment)}
+                >
+                  <Trash2 className="mr-2 size-4" />
+                  Delete History
+                </Button>
+              )}
             </div>
           )}
         </div>
       ))}
+
+      {/* ================================================== */}
+      {/* CANCEL APPOINTMENT CONFIRMATION */}
+      {/* ================================================== */}
+
+      <AlertDialog
+        open={!!appointmentToCancel}
+        onOpenChange={(open) => {
+          if (!cancelingId && !open) {
+            setAppointmentToCancel(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel appointment?</AlertDialogTitle>
+
+            <AlertDialogDescription>
+              Are you sure you want to cancel your appointment for{" "}
+              <span className="font-semibold text-foreground">
+                {appointmentToCancel?.serviceName}
+              </span>
+              ?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {appointmentToCancel && (
+            <div className="rounded-lg bg-muted/60 p-3">
+              <p className="text-sm font-medium">
+                {formatDate(appointmentToCancel.appointmentDate)}
+              </p>
+
+              <p className="mt-1 text-sm text-muted-foreground">
+                {formatTime(appointmentToCancel.timeSlot)}
+              </p>
+            </div>
+          )}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={!!cancelingId}>
+              Keep Appointment
+            </AlertDialogCancel>
+
+            <AlertDialogAction
+              variant="destructive"
+              disabled={!!cancelingId}
+              onClick={(event) => {
+                event.preventDefault();
+                void handleCancel();
+              }}
+            >
+              {cancelingId ? "Cancelling..." : "Yes, Cancel Appointment"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ================================================== */}
+      {/* INDIVIDUAL DELETE HISTORY CONFIRMATION */}
+      {/* ================================================== */}
+
+      <AlertDialog
+        open={!!appointmentToDelete}
+        onOpenChange={(open) => {
+          if (!deletingId && !open) {
+            setAppointmentToDelete(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete appointment history?</AlertDialogTitle>
+
+            <AlertDialogDescription>
+              Permanently delete the cancelled appointment for{" "}
+              <span className="font-semibold text-foreground">
+                {appointmentToDelete?.serviceName}
+              </span>
+              ? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {appointmentToDelete && (
+            <div className="rounded-lg bg-muted/60 p-3">
+              <p className="text-sm font-medium">
+                {formatDate(appointmentToDelete.appointmentDate)}
+              </p>
+
+              <p className="mt-1 text-sm text-muted-foreground">
+                {formatTime(appointmentToDelete.timeSlot)}
+              </p>
+            </div>
+          )}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={!!deletingId}>
+              Keep History
+            </AlertDialogCancel>
+
+            <AlertDialogAction
+              variant="destructive"
+              disabled={!!deletingId}
+              onClick={(event) => {
+                event.preventDefault();
+                void handleDeleteHistory();
+              }}
+            >
+              {deletingId ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ================================================== */}
+      {/* DELETE ALL HISTORY CONFIRMATION */}
+      {/* ================================================== */}
+
+      <AlertDialog
+        open={showDeleteAllConfirm}
+        onOpenChange={(open) => {
+          if (!deletingAllHistory) {
+            setShowDeleteAllConfirm(open);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete all appointment history?</AlertDialogTitle>
+
+            <AlertDialogDescription>
+              Are you sure you want to permanently delete all{" "}
+              <span className="font-semibold text-foreground">
+                {cancelledCount} cancelled appointment history records
+              </span>
+              ? Pending and Confirmed appointments will not be affected. This
+              action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingAllHistory}>
+              Keep History
+            </AlertDialogCancel>
+
+            <AlertDialogAction
+              variant="destructive"
+              disabled={deletingAllHistory || cancelledCount === 0}
+              onClick={(event) => {
+                event.preventDefault();
+                void handleDeleteAllHistory();
+              }}
+            >
+              {deletingAllHistory ? "Deleting..." : "Delete All"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

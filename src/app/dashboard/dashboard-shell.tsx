@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import {
   CalendarDays,
   CreditCard,
@@ -37,9 +37,17 @@ const navigation = {
       icon: Scissors,
     },
     { href: "/dashboard/admin/services/new", label: "Add Service", icon: Plus },
-    { href: "/dashboard/admin/appointments", label: "Manage Appointments", icon: ListChecks },
+    {
+      href: "/dashboard/admin/appointments",
+      label: "Manage Appointments",
+      icon: ListChecks,
+    },
     { href: "/dashboard/admin/users", label: "Manage Users", icon: Users },
-    { href: "/dashboard/admin/transactions", label: "Transactions", icon: CreditCard },
+    {
+      href: "/dashboard/admin/transactions",
+      label: "Transactions",
+      icon: CreditCard,
+    },
     { href: "/dashboard/admin/profile", label: "My Profile", icon: User },
   ],
   customer: [
@@ -66,7 +74,13 @@ const navigation = {
   ],
 } as const;
 
-function UserAvatar({ image, name }: { image?: string | null; name?: string | null }) {
+function UserAvatar({
+  image,
+  name,
+}: {
+  image?: string | null;
+  name?: string | null;
+}) {
   const [imageFailed, setImageFailed] = useState(false);
   const initial = name?.trim().charAt(0).toUpperCase();
 
@@ -147,12 +161,39 @@ function DashboardSidebar({
           <Scissors className="size-5 rotate-45" aria-hidden="true" />
         </div>
         <div>
-          <p className="font-bold tracking-tight text-zinc-900 dark:text-zinc-100">SalonBook</p>
-          <p className="text-xs text-amber-700 dark:text-amber-300">{roleLabel} portal</p>
+          <p className="font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
+            SalonBook
+          </p>
+          <p className="text-xs text-amber-700 dark:text-amber-300">
+            {roleLabel} portal
+          </p>
         </div>
       </div>
 
-      <DashboardNavigation role={role} onNavigate={onNavigate} />
+      <Suspense
+        fallback={
+          <nav
+            aria-label={`${role} dashboard navigation`}
+            className="space-y-1.5"
+          >
+            {navigation[role].map((item) => {
+              const Icon = item.icon;
+
+              return (
+                <div
+                  key={item.href}
+                  className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-zinc-600 dark:text-zinc-300"
+                >
+                  <Icon className="size-4 shrink-0" aria-hidden="true" />
+                  {item.label}
+                </div>
+              );
+            })}
+          </nav>
+        }
+      >
+        <DashboardNavigation role={role} onNavigate={onNavigate} />
+      </Suspense>
 
       <div className="mt-auto border-t border-amber-500/15 pt-4 dark:border-amber-400/15">
         <div className="mb-3 flex min-w-0 items-center gap-3 px-2">

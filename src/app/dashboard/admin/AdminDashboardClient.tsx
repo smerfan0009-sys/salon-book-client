@@ -405,11 +405,6 @@ export default function AdminDashboardClient() {
 
       {/* OVERVIEW */}
 
-      <div className="flex flex-wrap gap-3">
-        <Link href="/dashboard/admin/services" className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">Manage Services</Link>
-        <Link href="/dashboard/admin/appointments" className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted">Manage Appointments</Link>
-        <Link href="/dashboard/admin/users" className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted">Manage Users</Link>
-      </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <Card>
