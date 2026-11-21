@@ -120,7 +120,6 @@ export default function SignUpPage() {
         const message =
           signUpError.message ?? "Could not create your account. Please try again.";
         setError(message);
-        toast.error(message);
         return;
       }
 
@@ -157,7 +156,6 @@ export default function SignUpPage() {
     } catch {
       const message = "Something went wrong while creating your account. Please try again.";
       setError(message);
-      toast.error(message);
     } finally {
       setLoading(false);
     }

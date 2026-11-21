@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 
 import {
   ShieldCheck,
@@ -26,6 +27,16 @@ import {
 } from "@/components/ui/card";
 
 import { apiFetch } from "@/lib/api-fetch";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // --------------------------------------------------
 // TYPES
@@ -159,8 +170,8 @@ export default function AdminDashboardClient() {
   const [refreshing, setRefreshing] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<AdminAppointment | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
@@ -183,11 +194,11 @@ export default function AdminDashboardClient() {
 
         setOverview(overviewResult.data);
         setAppointments(appointmentsResult.data);
-        setError(null);
+        setLoadError(null);
       } catch (err) {
         if (!active) return;
 
-        setError(
+        setLoadError(
           err instanceof Error
             ? err.message
             : "Failed to load admin dashboard.",
@@ -209,8 +220,7 @@ export default function AdminDashboardClient() {
 
   function handleRefresh() {
     setRefreshing(true);
-    setNotice(null);
-    setError(null);
+    setLoadError(null);
     setRefreshKey((current) => current + 1);
   }
 
@@ -220,19 +230,8 @@ export default function AdminDashboardClient() {
   ) {
     if (busyId) return;
 
-    if (
-      status === "Cancelled" &&
-      !window.confirm(
-        `Cancel the appointment for ${appointment.customer?.name || "this customer"}?`,
-      )
-    ) {
-      return;
-    }
-
     try {
       setBusyId(appointment._id);
-      setError(null);
-      setNotice(null);
 
       await requestJson(`/api/appointments/${appointment._id}/status`, {
         method: "PATCH",
@@ -240,10 +239,11 @@ export default function AdminDashboardClient() {
         body: JSON.stringify({ status }),
       });
 
-      setNotice(`Appointment ${status.toLowerCase()} successfully.`);
+      toast.success(`Appointment ${status.toLowerCase()}.`);
+      if (status === "Cancelled") setCancelTarget(null);
       setRefreshKey((current) => current + 1);
     } catch (err) {
-      setError(
+      toast.error(
         err instanceof Error ? err.message : "Failed to update appointment.",
       );
     } finally {
@@ -317,21 +317,12 @@ export default function AdminDashboardClient() {
 
       {/* FEEDBACK */}
 
-      {error && (
+      {loadError && (
         <div
           role="alert"
           className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
         >
-          {error}
-        </div>
-      )}
-
-      {notice && (
-        <div
-          role="status"
-          className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300"
-        >
-          {notice}
+          {loadError}
         </div>
       )}
 
@@ -487,7 +478,7 @@ export default function AdminDashboardClient() {
                       <button
                         type="button"
                         disabled={busyId !== null}
-                        onClick={() => handleStatus(appointment, "Cancelled")}
+                        onClick={() => setCancelTarget(appointment)}
                         className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900 dark:hover:bg-red-950"
                       >
                         <XCircle className="size-4" />
@@ -549,6 +540,32 @@ export default function AdminDashboardClient() {
           )}
         </CardContent>
       </Card>
+      <AlertDialog
+        open={Boolean(cancelTarget)}
+        onOpenChange={(open) => !open && setCancelTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel appointment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {cancelTarget && `Cancel the appointment for ${cancelTarget.customer?.name || "this customer"}?`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep appointment</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={busyId !== null}
+              onClick={(event) => {
+                event.preventDefault();
+                if (cancelTarget) void handleStatus(cancelTarget, "Cancelled");
+              }}
+            >
+              {busyId ? "Cancelling..." : "Cancel appointment"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

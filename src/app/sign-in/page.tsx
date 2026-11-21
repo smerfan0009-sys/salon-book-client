@@ -50,7 +50,6 @@ export default function SignInPage() {
         const message =
           signInError.message ?? "Invalid email or password. Please try again.";
         setError(message);
-        toast.error(message);
         return;
       }
 
@@ -63,7 +62,6 @@ export default function SignInPage() {
     } catch {
       const message = "Something went wrong while signing in. Please try again.";
       setError(message);
-      toast.error(message);
     } finally {
       setLoading(false);
     }

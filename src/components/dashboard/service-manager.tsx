@@ -36,6 +36,7 @@ async function request(path: string, init?: RequestInit) {
 export default function ServiceManager() {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [target, setTarget] = useState<Service | null>(null);
@@ -48,7 +49,7 @@ export default function ServiceManager() {
       });
       setServices(d.data || []);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Unable to load services.");
+      setLoadError(e instanceof Error ? e.message : "Unable to load services.");
     } finally {
       setLoading(false);
     }
@@ -213,6 +214,14 @@ export default function ServiceManager() {
           )}
         </CardContent>
       </Card>
+      {loadError && (
+        <div
+          role="alert"
+          className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
+        >
+          {loadError}
+        </div>
+      )}
       <AlertDialog
         open={!!target}
         onOpenChange={(open) => !open && setTarget(null)}

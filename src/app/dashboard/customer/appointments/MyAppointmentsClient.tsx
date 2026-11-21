@@ -18,6 +18,16 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { apiFetch } from "@/lib/api-fetch";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type Appointment = {
   _id: string;
@@ -140,6 +150,7 @@ export default function MyAppointmentsClient() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<Appointment | null>(null);
   const [completionId, setCompletionId] = useState<string | null>(null);
   const [rating, setRating] = useState<number | null>(null);
   const [comment, setComment] = useState("");
@@ -179,15 +190,7 @@ export default function MyAppointmentsClient() {
   }, [refreshKey]);
 
   async function handleCancel(appointment: Appointment) {
-    if (
-      busyId ||
-      submittingCompletion ||
-      !window.confirm(
-        `Cancel your appointment for ${appointment.serviceName} on ${formatDate(appointment.appointmentDate)}?`,
-      )
-    ) {
-      return;
-    }
+    if (busyId || submittingCompletion) return;
 
     try {
       setBusyId(appointment._id);
@@ -196,6 +199,7 @@ export default function MyAppointmentsClient() {
         headers: { "Content-Type": "application/json" },
       });
       toast.success("Appointment request cancelled.");
+      setCancelTarget(null);
       setRefreshKey((value) => value + 1);
     } catch (err) {
       toast.error(
@@ -514,7 +518,7 @@ export default function MyAppointmentsClient() {
                         <button
                           type="button"
                           disabled={actionsDisabled}
-                          onClick={() => handleCancel(appointment)}
+                          onClick={() => setCancelTarget(appointment)}
                           className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900 dark:hover:bg-red-950"
                         >
                           <XCircle className="size-4" />
@@ -644,6 +648,32 @@ export default function MyAppointmentsClient() {
           })}
         </div>
       )}
+      <AlertDialog
+        open={Boolean(cancelTarget)}
+        onOpenChange={(open) => !open && setCancelTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel appointment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {cancelTarget && `Cancel your appointment for ${cancelTarget.serviceName} on ${formatDate(cancelTarget.appointmentDate)}?`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep appointment</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={busyId !== null || submittingCompletion}
+              onClick={(event) => {
+                event.preventDefault();
+                if (cancelTarget) void handleCancel(cancelTarget);
+              }}
+            >
+              {busyId ? "Cancelling..." : "Cancel appointment"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

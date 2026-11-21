@@ -35,6 +35,7 @@ export default function ProfileEditor() {
   const [name, setName] = useState("");
   const [image, setImage] = useState("");
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const load = async () => {
@@ -44,7 +45,7 @@ export default function ProfileEditor() {
       setName(result.data.name);
       setImage(result.data.image || "");
     } catch (error) {
-      toast.error(
+      setLoadError(
         error instanceof Error ? error.message : "Unable to load profile.",
       );
     } finally {
@@ -105,6 +106,14 @@ export default function ProfileEditor() {
           Update the details associated with your account.
         </p>
       </div>
+      {loadError && (
+        <div
+          role="alert"
+          className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
+        >
+          {loadError}
+        </div>
+      )}
       <Card>
         <CardHeader>
           <CardTitle>Account information</CardTitle>

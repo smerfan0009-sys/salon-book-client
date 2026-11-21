@@ -89,8 +89,11 @@ export default function ServiceForm({ id }: { id?: string }) {
   const [form, setForm] = useState<Form>({ ...blank });
 
   const [loading, setLoading] = useState(Boolean(id));
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [priceError, setPriceError] = useState<string | null>(null);
+  const [durationError, setDurationError] = useState<string | null>(null);
 
   // ------------------------------------------------
   // LOAD SERVICE FOR EDITING
@@ -130,7 +133,7 @@ export default function ServiceForm({ id }: { id?: string }) {
       } catch (error) {
         if (cancelled) return;
 
-        toast.error(
+        setLoadError(
           error instanceof Error ? error.message : "Unable to load service.",
         );
       } finally {
@@ -198,16 +201,19 @@ export default function ServiceForm({ id }: { id?: string }) {
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
+    setPriceError(null);
+    setDurationError(null);
+
     const price = Number(form.price);
     const duration = Number(form.duration);
 
     if (!Number.isFinite(price) || price < 0) {
-      toast.error("Please enter a valid price.");
+      setPriceError("Please enter a valid price.");
       return;
     }
 
     if (!Number.isInteger(duration) || duration < 5 || duration > 1440) {
-      toast.error("Duration must be between 5 and 1440 minutes.");
+      setDurationError("Duration must be between 5 and 1440 minutes.");
       return;
     }
 
@@ -269,6 +275,15 @@ export default function ServiceForm({ id }: { id?: string }) {
           Changes are validated on the server before they are saved.
         </p>
       </div>
+
+      {loadError && (
+        <div
+          role="alert"
+          className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
+        >
+          {loadError}
+        </div>
+      )}
 
       <Card>
         <CardContent className="pt-6">
@@ -344,10 +359,16 @@ export default function ServiceForm({ id }: { id?: string }) {
                   min="0"
                   step="0.01"
                   value={form.price}
-                  onChange={(e) => updateField("price", e.target.value)}
+                  onChange={(e) => {
+                    updateField("price", e.target.value);
+                    setPriceError(null);
+                  }}
                   required
                   className="mt-1"
                 />
+                {priceError && (
+                  <p className="mt-1 text-sm text-destructive">{priceError}</p>
+                )}
               </div>
 
               <div>
@@ -360,10 +381,16 @@ export default function ServiceForm({ id }: { id?: string }) {
                   max="1440"
                   step="1"
                   value={form.duration}
-                  onChange={(e) => updateField("duration", e.target.value)}
+                  onChange={(e) => {
+                    updateField("duration", e.target.value);
+                    setDurationError(null);
+                  }}
                   required
                   className="mt-1"
                 />
+                {durationError && (
+                  <p className="mt-1 text-sm text-destructive">{durationError}</p>
+                )}
               </div>
             </div>
 

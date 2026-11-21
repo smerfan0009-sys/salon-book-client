@@ -21,6 +21,7 @@ import {
 } from "react";
 import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 import {
   AlertTriangle,
@@ -741,11 +742,12 @@ function BookingForm({
       }
 
       setSubmitted({ date, time });
+      toast.success("Appointment request submitted.");
     } catch (err) {
-      setFormError(
+      toast.error(
         err instanceof Error
           ? err.message
-          : "Something went wrong. Please try again.",
+          : "Could not submit your appointment request.",
       );
     } finally {
       setSubmitting(false);

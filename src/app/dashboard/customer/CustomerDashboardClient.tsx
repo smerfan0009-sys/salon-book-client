@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import {
   CalendarDays,
   CheckCircle2,
@@ -20,6 +21,16 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { apiFetch } from "@/lib/api-fetch";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type Appointment = {
   _id: string;
@@ -122,8 +133,8 @@ export default function CustomerDashboardClient() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<Appointment | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -138,10 +149,10 @@ export default function CustomerDashboardClient() {
         });
         if (!active) return;
         setAppointments(result.data);
-        setError(null);
+        setLoadError(null);
       } catch (err) {
         if (active) {
-          setError(
+          setLoadError(
             err instanceof Error ? err.message : "Failed to load your dashboard.",
           );
         }
@@ -161,33 +172,26 @@ export default function CustomerDashboardClient() {
 
   function handleRefresh() {
     setRefreshing(true);
-    setError(null);
-    setNotice(null);
+    setLoadError(null);
     setRefreshKey((value) => value + 1);
   }
 
   async function handleCancel(appointment: Appointment) {
-    if (
-      busyId ||
-      !window.confirm(
-        `Cancel your appointment for ${appointment.serviceName} on ${formatDate(appointment.appointmentDate)}?`,
-      )
-    ) {
-      return;
-    }
+    if (busyId) return;
 
     try {
       setBusyId(appointment._id);
-      setError(null);
-      setNotice(null);
       await requestJson(`/api/appointments/${appointment._id}/cancel`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
       });
-      setNotice("Appointment cancelled successfully.");
+      toast.success("Appointment cancelled.");
+      setCancelTarget(null);
       setRefreshKey((value) => value + 1);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to cancel appointment.");
+      toast.error(
+        err instanceof Error ? err.message : "Failed to cancel appointment.",
+      );
     } finally {
       setBusyId(null);
     }
@@ -198,8 +202,6 @@ export default function CustomerDashboardClient() {
 
     try {
       setBusyId(appointment._id);
-      setError(null);
-      setNotice(null);
       const result = await requestJson<{ url: string }>(
         "/api/payments/checkout",
         {
@@ -211,7 +213,9 @@ export default function CustomerDashboardClient() {
       window.location.assign(result.data.url);
     } catch (err) {
       setBusyId(null);
-      setError(err instanceof Error ? err.message : "Failed to start payment.");
+      toast.error(
+        err instanceof Error ? err.message : "Failed to start payment.",
+      );
     }
   }
 
@@ -298,8 +302,7 @@ export default function CustomerDashboardClient() {
         </button>
       </div>
 
-      {error && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">{error}</div>}
-      {notice && <div role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">{notice}</div>}
+       {loadError && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">{loadError}</div>}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard title="Total Requests" value={counts.total} description="All your appointments" icon={<CalendarDays className="size-5 text-primary" />} />
@@ -347,7 +350,7 @@ export default function CustomerDashboardClient() {
                           {isExpanded ? "Hide Details" : "View Details"}
                         </button>
                         {canPay && <button type="button" disabled={isBusy} onClick={() => handlePay(appointment)} className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"><CreditCard className="size-4" />{isBusy ? "Redirecting..." : "Pay Now"}</button>}
-                        {appointment.status === "Pending" && <button type="button" disabled={isBusy} onClick={() => handleCancel(appointment)} className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900 dark:hover:bg-red-950"><XCircle className="size-4" />{isBusy ? "Cancelling..." : "Cancel"}</button>}
+                         {appointment.status === "Pending" && <button type="button" disabled={isBusy} onClick={() => setCancelTarget(appointment)} className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900 dark:hover:bg-red-950"><XCircle className="size-4" />{isBusy ? "Cancelling..." : "Cancel"}</button>}
                       </div>
                     </div>
                     {isExpanded && <div className="mt-5 border-t pt-5"><div className="grid gap-3 sm:grid-cols-3"><InfoTile label="Category" value={appointment.service?.category || "—"} /><InfoTile label="Duration" value={appointment.service?.duration ? `${appointment.service.duration} min` : "—"} />{price && <InfoTile label="Price" value={price} />}</div></div>}
@@ -368,6 +371,32 @@ export default function CustomerDashboardClient() {
           </Card>
         </div>
       )}
+      <AlertDialog
+        open={Boolean(cancelTarget)}
+        onOpenChange={(open) => !open && setCancelTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel appointment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {cancelTarget && `Cancel your appointment for ${cancelTarget.serviceName} on ${formatDate(cancelTarget.appointmentDate)}?`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep appointment</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={busyId !== null}
+              onClick={(event) => {
+                event.preventDefault();
+                if (cancelTarget) void handleCancel(cancelTarget);
+              }}
+            >
+              {busyId ? "Cancelling..." : "Cancel appointment"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

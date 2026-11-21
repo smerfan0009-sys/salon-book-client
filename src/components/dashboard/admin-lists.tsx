@@ -460,6 +460,7 @@ export function AppointmentList() {
   const [deleteAllOpen, setDeleteAllOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [services, setServices] = useState<any[]>([]);
 
   const load = useCallback(async (showLoader = true) => {
@@ -471,6 +472,7 @@ export function AppointmentList() {
       });
 
       setItems(response.data || []);
+      setLoadError(null);
 
       // Service details are optional: appointments still work if this fails
       try {
@@ -483,7 +485,7 @@ export function AppointmentList() {
         console.warn("Could not load service details:", serviceError);
       }
     } catch (error) {
-      toast.error(
+      setLoadError(
         error instanceof Error ? error.message : "Unable to load appointments.",
       );
     } finally {
@@ -657,6 +659,15 @@ export function AppointmentList() {
           icon={<CheckCircle2 className="size-5 text-sky-500" />}
         />
       </MetricGrid>
+
+      {loadError && (
+        <div
+          role="alert"
+          className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
+        >
+          {loadError}
+        </div>
+      )}
 
       <AdminList
         title="Manage Appointments"
@@ -1024,6 +1035,7 @@ export function UserList() {
   const [target, setTarget] = useState<any>(null);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(async (showLoader = true) => {
     if (showLoader) setLoading(true);
@@ -1034,8 +1046,9 @@ export function UserList() {
       });
 
       setItems(response.data || []);
+      setLoadError(null);
     } catch (error) {
-      toast.error(
+      setLoadError(
         error instanceof Error ? error.message : "Unable to load users.",
       );
     } finally {
@@ -1134,6 +1147,15 @@ export function UserList() {
           icon={<Ban className="size-5" />}
         />
       </MetricGrid>
+
+      {loadError && (
+        <div
+          role="alert"
+          className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
+        >
+          {loadError}
+        </div>
+      )}
 
       <AdminList
         title="Manage Users"
@@ -1248,6 +1270,7 @@ export function TransactionList() {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("all");
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -1257,8 +1280,9 @@ export function TransactionList() {
         });
 
         setItems(response.data || []);
+        setLoadError(null);
       } catch (error) {
-        toast.error(
+        setLoadError(
           error instanceof Error
             ? error.message
             : "Unable to load transactions.",
@@ -1336,6 +1360,15 @@ export function TransactionList() {
           icon={<XCircle className="size-5" />}
         />
       </MetricGrid>
+
+      {loadError && (
+        <div
+          role="alert"
+          className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
+        >
+          {loadError}
+        </div>
+      )}
 
       <AdminList
         title="Transactions"

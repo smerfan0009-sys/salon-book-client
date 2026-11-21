@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
@@ -14,10 +15,15 @@ export default function DashboardSignOut() {
   const handleSignOut = async () => {
     setLoading(true);
     try {
-      await authClient.signOut();
-    } finally {
+      const { error } = await authClient.signOut();
+      if (error) throw new Error(error.message || "Unable to sign out.");
+      toast.success("Signed out.");
       router.push("/sign-in");
       router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to sign out.");
+    } finally {
+      setLoading(false);
     }
   };
 
