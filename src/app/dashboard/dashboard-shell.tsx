@@ -122,7 +122,11 @@ function DashboardNavigation({
         const active =
           item.href === "/services"
             ? pathname === item.href || pathname.startsWith("/services/")
-            : pathname === item.href;
+            : item.href === "/dashboard/customer"
+              ? pathname === "/dashboard/customer"
+              : item.href === "/dashboard/customer/appointments"
+                ? pathname.startsWith("/dashboard/customer/appointments")
+                : pathname === item.href;
 
         return (
           <Link
