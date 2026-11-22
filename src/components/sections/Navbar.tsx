@@ -41,6 +41,8 @@ const NAV_LINKS: NavLink[] = [
     sectionId: "featured-services",
   },
   { type: "section", name: "Categories", sectionId: "categories" },
+  { type: "section", name: "How It Works", sectionId: "how-it-works" },
+  { type: "section", name: "FAQ", sectionId: "faq" },
   { type: "route", name: "Browse Services", href: "/services" },
 ];
 
