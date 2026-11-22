@@ -44,12 +44,15 @@ import {
 
 type DashboardOverview = {
   totalUsers: number;
+  totalCustomers: number;
+  totalActiveServices: number;
   totalAppointments: number;
   pendingAppointments: number;
   confirmedAppointments: number;
   cancelledAppointments: number;
   completedAppointments: number;
   blockedUsers: number;
+  totalSuccessfulPayments: number;
 };
 
 type AdminAppointment = {
@@ -330,10 +333,16 @@ export default function AdminDashboardClient() {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <StatCard
-          title="Total Users"
-          value={overview?.totalUsers ?? 0}
-          description="Registered platform accounts"
+          title="Registered Customers"
+          value={overview?.totalCustomers ?? overview?.totalUsers ?? 0}
+          description="Customer accounts only"
           icon={<Users className="size-5 text-primary" />}
+        />
+        <StatCard
+          title="Active Services"
+          value={overview?.totalActiveServices ?? 0}
+          description="Currently bookable services"
+          icon={<Scissors className="size-5 text-primary" />}
         />
         <StatCard
           title="Appointments"
@@ -351,6 +360,12 @@ export default function AdminDashboardClient() {
           title="Confirmed"
           value={overview?.confirmedAppointments ?? 0}
           description="Confirmed bookings"
+          icon={<CheckCircle2 className="size-5 text-emerald-500" />}
+        />
+        <StatCard
+          title="Successful Payments"
+          value={overview?.totalSuccessfulPayments ?? 0}
+          description="Verified payment records"
           icon={<CheckCircle2 className="size-5 text-emerald-500" />}
         />
         <StatCard

@@ -554,7 +554,7 @@ export default function MyAppointmentsClient() {
                     <div className="flex flex-col gap-4 rounded-xl border border-sky-200 bg-sky-50/50 p-4 dark:border-sky-900 dark:bg-sky-950/20">
                       <p className="text-sm text-muted-foreground">
                         Only confirm once you have received your service. This
-                        appointment will be removed from your dashboard.
+                          completed appointment will remain in your history.
                       </p>
 
                       <div>

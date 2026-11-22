@@ -28,10 +28,10 @@ export default function SignInPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Already signed in? Send the user to the home page.
+  // The dashboard is the single role-aware redirect point.
   useEffect(() => {
     if (session?.user) {
-      router.replace("/");
+      router.replace("/dashboard");
     }
   }, [session?.user, router]);
 
@@ -55,7 +55,7 @@ export default function SignInPage() {
 
       toast.success("Signed in successfully. Welcome back!");
 
-      router.push("/");
+      router.push("/dashboard");
       router.refresh();
     } catch {
       setError("Something went wrong while signing in. Please try again.");

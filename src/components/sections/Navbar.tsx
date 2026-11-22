@@ -31,8 +31,7 @@ type NavLink =
   | { type: "route"; name: string; href: string }
   | { type: "section"; name: string; sectionId: string };
 
-// Notun section add korte chaile ekhane ekta line add koro,
-// ar home page er oi section e matching id dao.
+
 const NAV_LINKS: NavLink[] = [
   { type: "route", name: "Home", href: "/" },
   {
@@ -50,7 +49,6 @@ const SECTION_IDS = NAV_LINKS.flatMap((l) =>
   l.type === "section" ? [l.sectionId] : [],
 );
 
-// Sticky navbar er height (top-3 + h-16) er por jate section heading dekha jay.
 const ACTIVE_OFFSET = 140;
 
 export default function Navbar() {
@@ -87,7 +85,6 @@ export default function Navbar() {
       setActiveSection(current);
     };
 
-    // Shurute ekbar check (callback er bhitore, tai synchronous setState na).
     const frame = requestAnimationFrame(onScroll);
     window.addEventListener("scroll", onScroll, { passive: true });
 
@@ -119,7 +116,6 @@ export default function Navbar() {
     const wasOpen = isOpen;
     setIsOpen(false);
     const isHome = pathname === "/";
-    // Mobile menu bondho hobar animation shesh howar por scroll korbo.
     const delay = wasOpen ? 300 : 0;
 
     if (link.type === "section" && isHome) {
@@ -137,7 +133,6 @@ export default function Navbar() {
         window.history.replaceState(null, "", "/");
       }, delay);
     }
-    // Onno page theke ashle default Link navigation (/#id) kaj korbe.
   };
 
   const handleSignOut = async () => {

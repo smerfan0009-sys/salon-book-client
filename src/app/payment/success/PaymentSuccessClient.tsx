@@ -109,7 +109,7 @@ export default function PaymentSuccessClient() {
         setAttempt(polls);
 
         if (!response.ok || !result?.success || !result.data) {
-          setStatus("failed");
+          setStatus(response.status === 404 ? "missing" : "failed");
           return;
         }
 
@@ -229,7 +229,7 @@ export default function PaymentSuccessClient() {
           <div className="flex flex-col gap-2">
             <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
               {view === "paid" && "Payment confirmed"}
-              {view === "checking" && "Confirming your payment"}
+              {view === "checking" && "Verifying payment"}
               {view === "received" && "Payment received"}
               {view === "failed" && "We could not confirm your payment"}
               {view === "missing" && "Payment session not found"}

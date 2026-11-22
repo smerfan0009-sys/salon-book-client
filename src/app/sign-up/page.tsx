@@ -49,10 +49,10 @@ export default function SignUpPage() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Already signed in? Send the user to the home page.
+  // The dashboard is the single role-aware redirect point.
   useEffect(() => {
     if (session?.user) {
-      router.replace("/");
+      router.replace("/dashboard");
     }
   }, [session?.user, router]);
 
@@ -160,7 +160,7 @@ export default function SignUpPage() {
 
       toast.success("Account created successfully. Welcome to SalonBook!");
 
-      router.push("/");
+      router.push("/dashboard");
       router.refresh();
     } catch {
       setError(

@@ -204,16 +204,27 @@ export default function ServiceForm({ id }: { id?: string }) {
     setPriceError(null);
     setDurationError(null);
 
-    const price = Number(form.price);
-    const duration = Number(form.duration);
+    const priceText = form.price.trim();
+    const durationText = form.duration.trim();
+    const price = Number(priceText);
+    const duration = Number(durationText);
 
-    if (!Number.isFinite(price) || price < 0) {
-      setPriceError("Please enter a valid price.");
+    if (
+      !/^(?:\d+(?:\.\d+)?|\.\d+)$/.test(priceText) ||
+      !Number.isFinite(price) ||
+      price <= 0
+    ) {
+      setPriceError("Price must be a finite number greater than zero.");
       return;
     }
 
-    if (!Number.isInteger(duration) || duration < 5 || duration > 1440) {
-      setDurationError("Duration must be between 5 and 1440 minutes.");
+    if (
+      !/^\d+$/.test(durationText) ||
+      !Number.isInteger(duration) ||
+      duration < 5 ||
+      duration > 1440
+    ) {
+      setDurationError("Duration must be a whole number between 5 and 1440 minutes.");
       return;
     }
 
@@ -356,7 +367,7 @@ export default function ServiceForm({ id }: { id?: string }) {
                 <Input
                   id="price"
                   type="number"
-                  min="0"
+                  min="0.01"
                   step="0.01"
                   value={form.price}
                   onChange={(e) => {

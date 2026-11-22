@@ -988,6 +988,25 @@ export function AppointmentList() {
                   </>
                 )}
 
+                {isConfirmed && (
+                  <>
+                    <div className="h-px bg-border/70" />
+                    <div className="flex justify-end">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-2"
+                        onClick={() =>
+                          setTarget({ ...item, next: "Cancelled" })
+                        }
+                      >
+                        <XCircle className="size-4" />
+                        Cancel appointment
+                      </Button>
+                    </div>
+                  </>
+                )}
+
                 {/* ACTIONS: CANCELLED / COMPLETED */}
 
                 {(isCancelled || isCompleted) && (
@@ -1020,7 +1039,7 @@ export function AppointmentList() {
         setTarget={setTarget}
         busy={busy}
         action={update}
-        text={`Change this pending appointment to ${target?.next}?`}
+        text={`Change this appointment to ${target?.next}?`}
       />
 
       {/* DELETE ONE HISTORY CONFIRM */}
@@ -1333,9 +1352,11 @@ export function TransactionList() {
 
         const searchText = [
           item._id,
-          item.transactionId,
           item.appointmentId,
-          item.paymentMethod,
+          item.stripeSessionId,
+          item.customer?.name,
+          item.customer?.email,
+          item.service?.name,
           item.amount,
           paymentStatus,
         ]
@@ -1441,11 +1462,11 @@ export function TransactionList() {
 
                   <div className="min-w-0">
                     <h3 className="break-all text-sm font-semibold">
-                      {item.transactionId || item._id}
+                      {shortId(item.stripeSessionId || item._id)}
                     </h3>
 
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Transaction ID
+                      Stripe session
                     </p>
                   </div>
                 </div>
@@ -1459,14 +1480,15 @@ export function TransactionList() {
 
               {/* TRANSACTION DETAILS */}
 
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <div className="rounded-lg bg-muted/50 p-3">
-                  <p className="text-xs text-muted-foreground">
-                    Appointment ID
-                  </p>
+                  <p className="text-xs text-muted-foreground">Customer</p>
 
-                  <p className="mt-1 break-all text-sm font-medium">
-                    {item.appointmentId || "—"}
+                  <p className="mt-1 text-sm font-medium">
+                    {item.customer?.name || "Deleted user"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {item.customer?.email || "—"}
                   </p>
                 </div>
 
@@ -1477,17 +1499,24 @@ export function TransactionList() {
                   </div>
 
                   <p className="mt-1 text-sm font-semibold">
-                    {item.amount ?? "—"}
+                    {item.amount === null || item.amount === undefined
+                      ? "—"
+                      : `${String(item.currency || "usd").toUpperCase()} ${Number(item.amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                   </p>
                 </div>
 
                 <div className="rounded-lg bg-muted/50 p-3">
-                  <p className="text-xs text-muted-foreground">
-                    Payment Method
-                  </p>
+                  <p className="text-xs text-muted-foreground">Service</p>
 
-                  <p className="mt-1 text-sm font-medium capitalize">
-                    {item.paymentMethod || "—"}
+                  <p className="mt-1 text-sm font-medium">
+                    {item.service?.name || "Deleted service"}
+                  </p>
+                </div>
+
+                <div className="rounded-lg bg-muted/50 p-3">
+                  <p className="text-xs text-muted-foreground">Appointment Date</p>
+                  <p className="mt-1 text-sm font-medium">
+                    {formatDay(item.appointmentDate)}
                   </p>
                 </div>
 
@@ -1497,7 +1526,7 @@ export function TransactionList() {
                   </p>
 
                   <p className="mt-1 text-sm font-medium">
-                    {stamp(item.transactionDate || item.createdAt)}
+                    {stamp(item.transactionDate)}
                   </p>
                 </div>
               </div>
