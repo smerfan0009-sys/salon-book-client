@@ -4,6 +4,7 @@ import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import "./globals.css";
 import Navbar from "@/components/sections/Navbar";
+import Footer from "@/components/sections/Footer";
 
 export const metadata: Metadata = {
   title: "SalonBook",
@@ -28,6 +29,7 @@ export default function RootLayout({
             <Navbar />
           </Suspense>
           <main className="flex-1">{children}</main>
+          <Footer />
           <Toaster richColors position="bottom-right" />
         </ThemeProvider>
       </body>
