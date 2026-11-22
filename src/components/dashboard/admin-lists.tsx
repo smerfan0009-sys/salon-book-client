@@ -457,7 +457,10 @@ export function AppointmentList() {
   const [status, setStatus] = useState("all");
   const [target, setTarget] = useState<any>(null);
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
-  const [deleteAllOpen, setDeleteAllOpen] = useState(false);
+  // Bulk delete: which history type is being deleted (Cancelled / Completed)
+  const [bulkDelete, setBulkDelete] = useState<
+    "Cancelled" | "Completed" | null
+  >(null);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -558,7 +561,7 @@ export function AppointmentList() {
     }
   };
 
-  // DELETE ONE CANCELLED APPOINTMENT HISTORY
+  // DELETE ONE CANCELLED / COMPLETED APPOINTMENT HISTORY
   const deleteHistory = async () => {
     if (!deleteTarget || busy) return;
 
@@ -589,26 +592,30 @@ export function AppointmentList() {
     }
   };
 
-  // DELETE ALL CANCELLED APPOINTMENT HISTORY
+  // DELETE ALL CANCELLED / COMPLETED APPOINTMENT HISTORY
   const deleteAllHistory = async () => {
-    if (stats.cancelled === 0 || busy) return;
+    if (!bulkDelete || busy) return;
+
+    const kind = bulkDelete;
+    const count = kind === "Cancelled" ? stats.cancelled : stats.completed;
+
+    if (count === 0) return;
 
     setBusy(true);
 
     try {
       const response = await request(
-        "/api/appointments/admin/history/cancelled",
+        `/api/appointments/admin/history/${kind.toLowerCase()}`,
         { method: "DELETE" },
       );
 
-      setItems((current) =>
-        current.filter((item) => item.status !== "Cancelled"),
-      );
+      setItems((current) => current.filter((item) => item.status !== kind));
 
-      setDeleteAllOpen(false);
+      setBulkDelete(null);
 
       toast.success(
-        response.message || "All cancelled appointment history deleted.",
+        response.message ||
+          `All ${kind.toLowerCase()} appointment history deleted.`,
       );
     } catch (error) {
       toast.error(
@@ -693,18 +700,33 @@ export function AppointmentList() {
               <option value="completed">Completed</option>
             </select>
 
-            {stats.cancelled > 0 && (
-              <Button
-                type="button"
-                variant="outline"
-                className="h-10 gap-2 border-red-500/30 text-red-600 hover:bg-red-500/10 hover:text-red-600"
-                onClick={() => setDeleteAllOpen(true)}
-                disabled={busy}
-              >
-                <Trash2 className="size-4" />
-                Delete All History
-              </Button>
-            )}
+            {stats.cancelled > 0 &&
+              (status === "all" || status === "cancelled") && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-10 gap-2 border-red-500/30 text-red-600 hover:bg-red-500/10 hover:text-red-600"
+                  onClick={() => setBulkDelete("Cancelled")}
+                  disabled={busy}
+                >
+                  <Trash2 className="size-4" />
+                  Delete All Cancelled
+                </Button>
+              )}
+
+            {stats.completed > 0 &&
+              (status === "all" || status === "completed") && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-10 gap-2 border-red-500/30 text-red-600 hover:bg-red-500/10 hover:text-red-600"
+                  onClick={() => setBulkDelete("Completed")}
+                  disabled={busy}
+                >
+                  <Trash2 className="size-4" />
+                  Delete All Completed
+                </Button>
+              )}
           </div>
         }
       >
@@ -742,8 +764,6 @@ export function AppointmentList() {
               className="border-border/70 shadow-sm transition-colors hover:border-primary/30"
             >
               <CardContent className="space-y-4 p-4 sm:p-5">
-                {/* SERVICE AND STATUS */}
-
                 {/* SERVICE AND STATUS */}
 
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
@@ -968,9 +988,9 @@ export function AppointmentList() {
                   </>
                 )}
 
-                {/* ACTIONS: CANCELLED */}
+                {/* ACTIONS: CANCELLED / COMPLETED */}
 
-                {isCancelled && (
+                {(isCancelled || isCompleted) && (
                   <>
                     <div className="h-px bg-border/70" />
 
@@ -1009,16 +1029,24 @@ export function AppointmentList() {
         setTarget={setDeleteTarget}
         busy={busy}
         action={deleteHistory}
-        text={`Permanently delete the cancelled appointment for ${deleteTarget?.serviceName || "this service"} (${deleteTarget?.customer?.name || "unknown customer"})? This action cannot be undone.`}
+        text={`Permanently delete the ${String(deleteTarget?.status || "").toLowerCase()} appointment for ${deleteTarget?.serviceName || "this service"} (${deleteTarget?.customer?.name || "unknown customer"})?${
+          deleteTarget?.status === "Completed"
+            ? " Its feedback will be deleted too."
+            : ""
+        } This action cannot be undone.`}
       />
 
       {/* DELETE ALL HISTORY CONFIRM */}
       <Confirm
-        target={deleteAllOpen ? true : null}
-        setTarget={() => setDeleteAllOpen(false)}
+        target={bulkDelete}
+        setTarget={() => setBulkDelete(null)}
         busy={busy}
         action={deleteAllHistory}
-        text={`Permanently delete all ${stats.cancelled} cancelled appointment records of ALL customers? Pending and Confirmed appointments will not be affected. This action cannot be undone.`}
+        text={
+          bulkDelete === "Completed"
+            ? `Permanently delete all ${stats.completed} completed appointment records of ALL customers? Their feedback will be deleted too. Pending, Confirmed and Cancelled appointments will not be affected. This action cannot be undone.`
+            : `Permanently delete all ${stats.cancelled} cancelled appointment records of ALL customers? Pending, Confirmed and Completed appointments will not be affected. This action cannot be undone.`
+        }
       />
     </div>
   );
