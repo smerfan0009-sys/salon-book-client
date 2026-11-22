@@ -9,16 +9,11 @@
  *  - Unknown service    -> "Service not found"
  *  - Inactive service   -> visible, but booking is disabled
  *  - Admin account      -> can view, but cannot submit appointment requests
- *  - Customer           -> can submit an appointment request
+ *  - Customer           -> can submit an appointment request, then is
+ *                          redirected to the customer dashboard
  */
 
-import {
-  Suspense,
-  useEffect,
-  useMemo,
-  useState,
-  type FormEvent,
-} from "react";
+import { Suspense, useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -26,10 +21,8 @@ import { toast } from "sonner";
 import {
   AlertTriangle,
   ArrowLeft,
-  ArrowRight,
   Banknote,
   CalendarCheck,
-  CheckCircle2,
   ChevronRight,
   Clock,
   Loader2,
@@ -51,6 +44,9 @@ const SERVICE_ENDPOINT = (id: string) =>
   `/api/services/${encodeURIComponent(id)}`;
 const APPOINTMENTS_ENDPOINT = "/api/appointments";
 const LOGIN_PATH = "/sign-in";
+// Booking submit hole ekhane niye jabe. "My Appointments" page e pathate
+// chaile ei path ta tomar oi route diye change koro.
+const CUSTOMER_DASHBOARD_PATH = "/dashboard/customer";
 
 const CURRENCY_SYMBOL = "$";
 
@@ -234,15 +230,6 @@ function formatTimeLabel(time: string): string {
   const suffix = hour >= 12 ? "PM" : "AM";
   const displayHour = hour % 12 === 0 ? 12 : hour % 12;
   return `${displayHour}:${minute} ${suffix}`;
-}
-
-function formatDateLabel(date: string): string {
-  return new Date(`${date}T00:00:00`).toLocaleDateString("en-GB", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
 }
 
 function buildTimeSlots(): string[] {
@@ -654,10 +641,6 @@ function BookingForm({
   const [errors, setErrors] = useState<FormErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState<{
-    date: string;
-    time: string;
-  } | null>(null);
 
   const slots = useMemo(() => buildTimeSlots(), []);
 
@@ -708,6 +691,7 @@ function BookingForm({
     if (Object.keys(nextErrors).length > 0) return;
 
     setSubmitting(true);
+    let redirecting = false;
 
     try {
       const response = await apiFetch(APPOINTMENTS_ENDPOINT, {
@@ -741,8 +725,11 @@ function BookingForm({
         );
       }
 
-      setSubmitted({ date, time });
-      toast.success("Appointment request submitted.");
+      toast.success("Appointment request submitted successfully.");
+
+      // Success: customer dashboard e niye jao.
+      redirecting = true;
+      router.push(CUSTOMER_DASHBOARD_PATH);
     } catch (err) {
       toast.error(
         err instanceof Error
@@ -750,46 +737,12 @@ function BookingForm({
           : "Could not submit your appointment request.",
       );
     } finally {
-      setSubmitting(false);
+      // Redirect hole button disabled thakbe (double submit bondho),
+      // error hole abar enable hobe.
+      if (!redirecting) setSubmitting(false);
     }
   }
 
-  function resetForm() {
-    setDate("");
-    setTime("");
-    setNotes("");
-    setErrors({});
-    setFormError(null);
-    setSubmitted(null);
-  }
-
-  /* ---- Success state ---- */
-  if (submitted) {
-    return (
-      <BookingNotice
-        icon={<CheckCircle2 className="h-6 w-6" />}
-        title="Request submitted"
-        message={`Your request for ${service.name} on ${formatDateLabel(submitted.date)} at ${formatTimeLabel(submitted.time)} has been sent. We'll confirm it shortly.`}
-      >
-        <div className="flex flex-col gap-2 pt-2">
-          <Link href="/services" className={PRIMARY_BUTTON}>
-            Browse more services
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-
-          <button
-            type="button"
-            onClick={resetForm}
-            className={SECONDARY_BUTTON}
-          >
-            Request another time
-          </button>
-        </div>
-      </BookingNotice>
-    );
-  }
-
-  /* ---- Form ---- */
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-4">
       <p className="text-xs text-zinc-500 dark:text-zinc-400">
@@ -884,7 +837,8 @@ function BookingForm({
           htmlFor="appointment-notes"
           className="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300"
         >
-          Additional message <span className="font-normal text-zinc-400">(optional)</span>
+          Additional message{" "}
+          <span className="font-normal text-zinc-400">(optional)</span>
         </label>
 
         <textarea
