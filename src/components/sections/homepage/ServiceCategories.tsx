@@ -126,7 +126,7 @@ export default function ServiceCategories() {
   };
 
   return (
-    <section className="w-full py-12 transition-colors duration-500 md:py-16">
+    <section id="categories" className="w-full py-12 transition-colors duration-500 md:py-16">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="mb-10 flex flex-col justify-between gap-4 md:flex-row md:items-end">

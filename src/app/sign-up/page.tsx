@@ -4,7 +4,16 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { User, Mail, Lock, Image as ImageIcon, Link2, Upload, Loader2, Scissors } from "lucide-react";
+import {
+  User,
+  Mail,
+  Lock,
+  Image as ImageIcon,
+  Link2,
+  Upload,
+  Loader2,
+  Scissors,
+} from "lucide-react";
 
 import { authClient, useSession } from "@/lib/auth-client";
 import { apiFetch } from "@/lib/api-fetch";
@@ -40,10 +49,10 @@ export default function SignUpPage() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Already signed in? Send the user to their dashboard.
+  // Already signed in? Send the user to the home page.
   useEffect(() => {
     if (session?.user) {
-      router.replace("/dashboard");
+      router.replace("/");
     }
   }, [session?.user, router]);
 
@@ -117,9 +126,10 @@ export default function SignUpPage() {
       });
 
       if (signUpError) {
-        const message =
-          signUpError.message ?? "Could not create your account. Please try again.";
-        setError(message);
+        setError(
+          signUpError.message ??
+            "Could not create your account. Please try again.",
+        );
         return;
       }
 
@@ -138,24 +148,24 @@ export default function SignUpPage() {
             await authClient.updateUser({ image: body.url });
           } else {
             toast.warning(
-              "Account created, but the profile image could not be uploaded. You can update it later."
+              "Account created, but the profile image could not be uploaded. You can update it later.",
             );
           }
         } catch {
           toast.warning(
-            "Account created, but the profile image could not be uploaded. You can update it later."
+            "Account created, but the profile image could not be uploaded. You can update it later.",
           );
         }
       }
 
       toast.success("Account created successfully. Welcome to SalonBook!");
 
-      // 3. /dashboard routes to the correct dashboard by role.
-      router.push("/dashboard");
+      router.push("/");
       router.refresh();
     } catch {
-      const message = "Something went wrong while creating your account. Please try again.";
-      setError(message);
+      setError(
+        "Something went wrong while creating your account. Please try again.",
+      );
     } finally {
       setLoading(false);
     }
@@ -334,7 +344,10 @@ export default function SignUpPage() {
 
           <p className="text-center text-sm text-muted-foreground">
             Already have an account?{" "}
-            <Link href="/sign-in" className="font-medium text-primary hover:underline">
+            <Link
+              href="/sign-in"
+              className="font-medium text-primary hover:underline"
+            >
               Sign in
             </Link>
           </p>

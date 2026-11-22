@@ -28,10 +28,10 @@ export default function SignInPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Already signed in? Send the user to their dashboard.
+  // Already signed in? Send the user to the home page.
   useEffect(() => {
     if (session?.user) {
-      router.replace("/dashboard");
+      router.replace("/");
     }
   }, [session?.user, router]);
 
@@ -41,27 +41,24 @@ export default function SignInPage() {
     setLoading(true);
 
     try {
-      const { data, error: signInError } = await authClient.signIn.email({
+      const { error: signInError } = await authClient.signIn.email({
         email: email.trim().toLowerCase(),
         password,
       });
 
       if (signInError) {
-        const message =
-          signInError.message ?? "Invalid email or password. Please try again.";
-        setError(message);
+        setError(
+          signInError.message ?? "Invalid email or password. Please try again.",
+        );
         return;
       }
 
       toast.success("Signed in successfully. Welcome back!");
 
-      // Role-based redirect (missing role defaults to customer).
-      const role = (data?.user as { role?: string } | undefined)?.role ?? "customer";
-      router.push(role === "admin" ? "/dashboard/admin" : "/dashboard/customer");
+      router.push("/");
       router.refresh();
     } catch {
-      const message = "Something went wrong while signing in. Please try again.";
-      setError(message);
+      setError("Something went wrong while signing in. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -147,7 +144,10 @@ export default function SignInPage() {
 
           <p className="text-center text-sm text-muted-foreground">
             Don&apos;t have an account?{" "}
-            <Link href="/sign-up" className="font-medium text-primary hover:underline">
+            <Link
+              href="/sign-up"
+              className="font-medium text-primary hover:underline"
+            >
               Sign up
             </Link>
           </p>

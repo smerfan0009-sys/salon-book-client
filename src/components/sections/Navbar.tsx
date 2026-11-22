@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Scissors,
   Menu,
@@ -27,25 +27,116 @@ import {
 import ThemeToggle from "@/components/theme-toggle";
 import { useSession, authClient } from "@/lib/auth-client";
 
+type NavLink =
+  | { type: "route"; name: string; href: string }
+  | { type: "section"; name: string; sectionId: string };
+
+// Notun section add korte chaile ekhane ekta line add koro,
+// ar home page er oi section e matching id dao.
+const NAV_LINKS: NavLink[] = [
+  { type: "route", name: "Home", href: "/" },
+  {
+    type: "section",
+    name: "Featured Services",
+    sectionId: "featured-services",
+  },
+  { type: "section", name: "Categories", sectionId: "categories" },
+  { type: "route", name: "Browse Services", href: "/services" },
+];
+
+const SECTION_IDS = NAV_LINKS.flatMap((l) =>
+  l.type === "section" ? [l.sectionId] : [],
+);
+
+// Sticky navbar er height (top-3 + h-16) er por jate section heading dekha jay.
+const ACTIVE_OFFSET = 140;
+
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
 
   const [isOpen, setIsOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState<string | null>(null);
 
-  const { data: session } = useSession();
+  const { data: session, isPending } = useSession();
   const profileImage = session?.user?.image;
 
   const userRole =
     (session?.user as { role?: string } | undefined)?.role ?? "customer";
+  const isAdmin = userRole === "admin";
 
-  const dashboardPath =
-    userRole === "admin" ? "/dashboard/admin" : "/dashboard/customer";
+  const dashboardPath = isAdmin ? "/dashboard/admin" : "/dashboard/customer";
+  // Tomar real profile route onujayi eta change koro.
+  const profilePath = isAdmin
+    ? "/dashboard/admin/profile"
+    : "/dashboard/customer/profile";
 
-  const navLinks = [
-    { name: "Home", href: "/" },
-    { name: "Browse Services", href: "/services" },
-  ];
+  useEffect(() => {
+    if (pathname !== "/") return;
+
+    const onScroll = () => {
+      let current: string | null = null;
+      for (const id of SECTION_IDS) {
+        const el = document.getElementById(id);
+        if (el && el.getBoundingClientRect().top <= ACTIVE_OFFSET) {
+          current = id;
+        }
+      }
+      setActiveSection(current);
+    };
+
+    // Shurute ekbar check (callback er bhitore, tai synchronous setState na).
+    const frame = requestAnimationFrame(onScroll);
+    window.addEventListener("scroll", onScroll, { passive: true });
+
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, [pathname]);
+
+  const currentSection = pathname === "/" ? activeSection : null;
+
+  const isLinkActive = (link: NavLink) => {
+    if (link.type === "section") {
+      return pathname === "/" && currentSection === link.sectionId;
+    }
+    if (link.href === "/") {
+      return pathname === "/" && currentSection === null;
+    }
+    return pathname === link.href || pathname.startsWith(`${link.href}/`);
+  };
+
+  const getHref = (link: NavLink) =>
+    link.type === "section" ? `/#${link.sectionId}` : link.href;
+
+  const handleNavClick = (
+    e: React.MouseEvent<HTMLAnchorElement>,
+    link: NavLink,
+  ) => {
+    const wasOpen = isOpen;
+    setIsOpen(false);
+    const isHome = pathname === "/";
+    // Mobile menu bondho hobar animation shesh howar por scroll korbo.
+    const delay = wasOpen ? 300 : 0;
+
+    if (link.type === "section" && isHome) {
+      e.preventDefault();
+      setTimeout(() => {
+        document
+          .getElementById(link.sectionId)
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+        window.history.replaceState(null, "", `/#${link.sectionId}`);
+      }, delay);
+    } else if (link.type === "route" && link.href === "/" && isHome) {
+      e.preventDefault();
+      setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        window.history.replaceState(null, "", "/");
+      }, delay);
+    }
+    // Onno page theke ashle default Link navigation (/#id) kaj korbe.
+  };
 
   const handleSignOut = async () => {
     try {
@@ -74,6 +165,12 @@ export default function Navbar() {
       <User className="h-4 w-4" />
     );
 
+  const roleBadge = (
+    <span className="mt-1.5 inline-flex rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-700 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-300">
+      {isAdmin ? "Admin" : "Customer"}
+    </span>
+  );
+
   return (
     <header className="sticky top-3 z-50 w-full px-4 transition-all duration-500 sm:px-6 lg:px-8">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between rounded-2xl border border-amber-500/25 bg-white/65 px-4 shadow-lg shadow-amber-950/5 backdrop-blur-xl transition-all duration-500 hover:border-amber-500/40 hover:shadow-amber-500/10 md:px-6 dark:border-amber-400/20 dark:bg-zinc-950/65 dark:shadow-black/40 dark:hover:border-amber-400/35">
@@ -99,19 +196,16 @@ export default function Navbar() {
         </Link>
 
         {/* Desktop Navigation */}
-        <nav className="hidden items-center gap-7 md:flex">
-          {navLinks.map((link) => {
-            const isActive =
-              link.href === "/"
-                ? pathname === "/"
-                : pathname === link.href ||
-                  pathname.startsWith(`${link.href}/`);
+        <nav className="hidden items-center gap-5 md:flex lg:gap-7">
+          {NAV_LINKS.map((link) => {
+            const isActive = isLinkActive(link);
 
             return (
               <Link
                 key={link.name}
-                href={link.href}
-                className={`group relative py-1 text-sm font-medium transition-colors duration-300 hover:text-amber-600 dark:hover:text-amber-400 ${
+                href={getHref(link)}
+                onClick={(e) => handleNavClick(e, link)}
+                className={`group relative whitespace-nowrap py-1 text-sm font-medium transition-colors duration-300 hover:text-amber-600 dark:hover:text-amber-400 ${
                   isActive
                     ? "font-semibold text-amber-600 dark:text-amber-400"
                     : "text-zinc-700 dark:text-zinc-300"
@@ -132,11 +226,14 @@ export default function Navbar() {
         <div className="hidden items-center gap-3 md:flex">
           <ThemeToggle />
 
-          {session ? (
+          {isPending ? (
+            <div className="h-9 w-28 animate-pulse rounded-xl bg-amber-500/10 dark:bg-amber-400/10" />
+          ) : session ? (
             <DropdownMenu>
               <DropdownMenuTrigger className="group flex items-center gap-2 rounded-full border border-transparent px-2 py-1.5 transition-all duration-300 hover:border-amber-500/25 hover:bg-amber-500/10 dark:hover:border-amber-400/25 dark:hover:bg-amber-400/10">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-amber-500/50 bg-gradient-to-br from-amber-100 to-yellow-100 font-semibold text-amber-800 transition-transform duration-300 group-hover:scale-105 dark:border-amber-400/50 dark:from-amber-950/80 dark:to-yellow-950/60 dark:text-amber-300">
                   {profileImage ? (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img
                       key={profileImage}
                       src={profileImage}
@@ -161,7 +258,7 @@ export default function Navbar() {
 
               <DropdownMenuContent
                 align="end"
-                className="mt-2 w-56 rounded-xl border-amber-500/20 bg-white/90 p-2 backdrop-blur-xl dark:border-amber-400/20 dark:bg-zinc-950/90"
+                className="mt-2 w-60 rounded-xl border-amber-500/20 bg-white/90 p-2 backdrop-blur-xl dark:border-amber-400/20 dark:bg-zinc-950/90"
               >
                 <div className="px-2 py-2">
                   <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
@@ -173,9 +270,19 @@ export default function Navbar() {
                       {session.user.email}
                     </p>
                   )}
+
+                  {roleBadge}
                 </div>
 
                 <DropdownMenuSeparator className="bg-amber-500/15 dark:bg-amber-400/15" />
+
+                <DropdownMenuItem
+                  onClick={() => router.push(profilePath)}
+                  className="flex cursor-pointer items-center gap-2 rounded-lg transition-colors focus:bg-amber-500/10 focus:text-amber-700 dark:focus:bg-amber-400/10 dark:focus:text-amber-300"
+                >
+                  <User className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                  My Profile
+                </DropdownMenuItem>
 
                 <DropdownMenuItem
                   onClick={() => router.push(dashboardPath)}
@@ -255,18 +362,14 @@ export default function Navbar() {
 
                 {/* Mobile Navigation */}
                 <nav className="flex flex-col gap-2">
-                  {navLinks.map((link) => {
-                    const isActive =
-                      link.href === "/"
-                        ? pathname === "/"
-                        : pathname === link.href ||
-                          pathname.startsWith(`${link.href}/`);
+                  {NAV_LINKS.map((link) => {
+                    const isActive = isLinkActive(link);
 
                     return (
                       <Link
                         key={link.name}
-                        href={link.href}
-                        onClick={closeMobileMenu}
+                        href={getHref(link)}
+                        onClick={(e) => handleNavClick(e, link)}
                         className={`rounded-xl px-3.5 py-2.5 text-base font-medium transition-all duration-300 hover:translate-x-1 ${
                           isActive
                             ? "bg-amber-500/15 font-semibold text-amber-700 dark:bg-amber-400/15 dark:text-amber-300"
@@ -285,6 +388,7 @@ export default function Navbar() {
                     <div className="flex items-center gap-3">
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-amber-500/40 bg-gradient-to-br from-amber-100 to-yellow-100 font-bold text-amber-800 dark:border-amber-400/40 dark:from-amber-950/80 dark:to-yellow-950/60 dark:text-amber-300">
                         {profileImage ? (
+                          // eslint-disable-next-line @next/next/no-img-element
                           <img
                             key={profileImage}
                             src={profileImage}
@@ -302,18 +406,32 @@ export default function Navbar() {
                         </span>
                       </div>
 
-                      <div className="flex min-w-0 flex-col">
-                        <span className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                      <div className="flex min-w-0 flex-col items-start">
+                        <span className="w-full truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                           {session.user.name || "My Account"}
                         </span>
 
-                        <span className="truncate text-xs text-zinc-500 dark:text-zinc-400">
+                        <span className="w-full truncate text-xs text-zinc-500 dark:text-zinc-400">
                           {session.user.email}
                         </span>
+
+                        {roleBadge}
                       </div>
                     </div>
 
-                    <DropdownMenuSeparator className="my-2 bg-amber-500/15 dark:bg-amber-400/15" />
+                    <hr className="my-2 border-amber-500/15 dark:border-amber-400/15" />
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        closeMobileMenu();
+                        router.push(profilePath);
+                      }}
+                      className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm font-medium text-zinc-800 transition-all duration-300 hover:translate-x-1 hover:bg-amber-500/10 hover:text-amber-700 dark:text-zinc-200 dark:hover:bg-amber-400/10 dark:hover:text-amber-300"
+                    >
+                      <User className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                      My Profile
+                    </button>
 
                     <button
                       type="button"
@@ -332,7 +450,7 @@ export default function Navbar() {
 
               {/* Mobile Authentication Actions */}
               <div className="flex flex-col gap-3 border-t border-amber-500/20 pt-4 dark:border-amber-400/20">
-                {session ? (
+                {isPending ? null : session ? (
                   <Button
                     variant="destructive"
                     onClick={handleSignOut}
