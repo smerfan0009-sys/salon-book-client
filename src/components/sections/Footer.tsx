@@ -37,7 +37,7 @@ const SALON_INFO = {
 const NAV_LINKS = [
   { label: "Home", href: "/" },
   { label: "Services", href: "/services" },
-  { label: "My Appointments", href: "/my-appointments" },
+  { label: "My Appointments", href: "/dashboard/customer/appointments" },
   { label: "How It Works", href: "/#how-it-works" },
   { label: "FAQ", href: "/#faq" },
 ];
