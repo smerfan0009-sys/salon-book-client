@@ -16,14 +16,12 @@ import {
 } from "lucide-react";
 
 import ServiceCard, { type SalonService } from "@/app/cards/ServiceCard";
-
+import { apiRequest } from "@/lib/api-fetch";
 import type { SalonCategory } from "@/app/cards/CategoryCard";
 
 /* -------------------------------------------------------------------------- */
 /*                                  Constants                                 */
 /* -------------------------------------------------------------------------- */
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, "");
 
 const SKELETON_COUNT = 6;
 
@@ -232,20 +230,14 @@ function useServicesData() {
       setError(null);
 
       try {
-        if (!API_BASE_URL) {
-          throw new Error(
-            "API URL is not configured. Check NEXT_PUBLIC_API_URL.",
-          );
-        }
-
         const [servicesResponse, categoriesResponse] = await Promise.all([
-          fetch(`${API_BASE_URL}/api/services/`, {
+          apiRequest("/api/services/", {
             method: "GET",
             cache: "no-store",
             signal: controller.signal,
           }),
 
-          fetch(`${API_BASE_URL}/api/services/categories`, {
+          apiRequest("/api/services/categories", {
             method: "GET",
             cache: "no-store",
             signal: controller.signal,

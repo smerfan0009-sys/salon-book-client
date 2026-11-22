@@ -1,6 +1,13 @@
 import { authClient } from "@/lib/auth-client";
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
+// Browser API requests stay on the Next.js origin and are forwarded by the
+// /api rewrite, so Better Auth cookies remain same-origin.
+export function apiRequest(path: string, init: RequestInit = {}) {
+  return fetch(path, {
+    ...init,
+    credentials: init.credentials ?? "include",
+  });
+}
 
 // --------------------------------------------------
 // AUTHENTICATED FETCH FOR EXPRESS REST APIS
@@ -19,9 +26,8 @@ export async function apiFetch(path: string, init: RequestInit = {}) {
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  return fetch(`${API_URL}${path}`, {
+  return apiRequest(path, {
     ...init,
-    credentials: "include",
     headers,
   });
 }

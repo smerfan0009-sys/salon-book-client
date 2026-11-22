@@ -21,6 +21,7 @@ export default function GoogleButton({ label }: { label: string }) {
         {
           provider: "google",
           callbackURL: `${window.location.origin}/dashboard`,
+          errorCallbackURL: `${window.location.origin}/sign-in`,
         },
         {
           onError: (ctx) => {

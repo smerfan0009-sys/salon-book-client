@@ -5,9 +5,7 @@ import Link from "next/link";
 import { ArrowRight, RefreshCw, Sparkles } from "lucide-react";
 
 import ServiceCard, { type SalonService } from "@/app/cards/ServiceCard";
-
-// Remove trailing slash from API URL
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, "");
+import { apiRequest } from "@/lib/api-fetch";
 
 const FEATURED_SERVICES_LIMIT = 6;
 
@@ -32,15 +30,8 @@ export default function FeaturedServices() {
       setError(null);
 
       try {
-        // Check API URL
-        if (!API_BASE_URL) {
-          throw new Error(
-            "API URL is not configured. Please check NEXT_PUBLIC_API_URL.",
-          );
-        }
-
         // Fetch Services
-        const response = await fetch(`${API_BASE_URL}/api/services/`, {
+        const response = await apiRequest("/api/services/", {
           method: "GET",
           cache: "no-store",
           signal: controller.signal,

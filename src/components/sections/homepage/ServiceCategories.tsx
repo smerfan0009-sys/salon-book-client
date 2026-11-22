@@ -7,9 +7,7 @@ import { ArrowRight, RefreshCw, Sparkles } from "lucide-react";
 import CategoryCard, {
   type SalonCategory,
 } from "@/app/cards/CategoryCard";
-
-// Remove trailing slash from API URL
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, "");
+import { apiRequest } from "@/lib/api-fetch";
 
 const CATEGORY_SKELETON_COUNT = 8;
 
@@ -51,16 +49,9 @@ export default function ServiceCategories() {
       setError(null);
 
       try {
-        // Check API URL
-        if (!API_BASE_URL) {
-          throw new Error(
-            "API URL is not configured. Please check NEXT_PUBLIC_API_URL.",
-          );
-        }
-
         // Fetch Categories
-        const response = await fetch(
-          `${API_BASE_URL}/api/services/categories`,
+        const response = await apiRequest(
+          "/api/services/categories",
           {
             method: "GET",
             cache: "no-store",
